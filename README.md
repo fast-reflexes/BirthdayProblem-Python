@@ -1,7 +1,7 @@
 
 # Birthday problem solver in Python
 
-This project calculates the generalized birthday problem in the Python language using the `decimal` class. It can be used from the command line as a standalone application or as a dependency from another project.
+This project calculates the generalized birthday problem in the Python language using the `Decimal` class. It can be used from the command line as a standalone application or as a dependency from another project.
 
 ## Synopsis
 
@@ -112,6 +112,11 @@ To run tests, simply execute
 
     > python RunTests.py
     
+## Notes
+
+* This project is also available in Kotlin at https://github.com/fast-reflexes/BirthdayProblem-Kotlin
+* This project is available as an online solver at https://www.bdayprob.com
+
 ## Author
 
 Elias Lousseief (2020)
