@@ -27,23 +27,19 @@ whether they match well.
 
 ### Parameter legend
 
-Name | Type | Effect
---- | --- | ---
-`D` | integer | The size of the set to sample from
-`N` | integer | The number of samples sampled from `D`
-`P` | floating point number | The probability of a non-unique sample in `N`
-`binary` | boolean | Whether to interpret `D` and `N` as base-2 logarithms
-`combinations` | boolean | Whether to interpret `D` as the size of a set from which we must yield the actual size, `D!`, of the set to sample from  
-`exact` | boolean | Whether to calculate `P` with exact method
-`stirling` | boolean | Whether to calculate `P` with exact method using Stirling's approximation in calculation of faculties
-`taylor` | boolean | Whether to calculate `P` with Taylor approximation 
-`prec` | integer | Decimals in the solution where applicable (in [0, 10] with default 10)
-    
-## Dependencies
-
-* Xenomachina (kotlin-argparser) - https://www.kotlinresources.com/library/kotlin-argparser/
-* Big-Math - https://github.com/eobermuhlner/big-math
-* FastXML (Jackson-module-kotlin) - https://github.com/FasterXML/jackson-module-kotlin
+Name | Type | Effect | CLI flag
+--- | --- | --- | ---
+`D` | integer | The size of the set to sample from | -
+`N` | integer | The number of samples sampled from `D` | `-n`
+`P` | floating point number | The probability of a non-unique sample in `N` | `-p`
+`binary` | boolean | Whether to interpret `D` and `N` as base-2 logarithms | `-b`
+`combinations` | boolean | Whether to interpret `D` as the size of a set from which we must yield the actual size, `D!`, of the set to sample from | `-c`  
+`taylor` | boolean | Whether to calculate `P` with Taylor approximation | `-t`
+`stirling` | boolean | Whether to calculate `P` with exact method using Stirling's approximation in calculation of faculties | `-s`
+`exact` | boolean | Whether to calculate `P` with exact method | `-e`
+`all` | boolean | Whether to calculate `P` with all methods (implies `-s -t -e`) | `-a`
+`json` | boolean | Whether to output answer as a Json object or as text | `-j`
+`prec` | integer | Decimals in the solution where applicable (in [0, 10] with default 10) | `--prec`
 
 ## Versions
 
@@ -53,31 +49,15 @@ This project uses Python 3.7 or higher.
 
 ### Command-line
 
-When using the project on the command-line, transitive dependencies need to be included manually.
+Command-line usage can be summarized with following input parameters:
 
-To compile the project on command-line, make sure all the listed dependencies are available and execute:
-
-    > kotlinc -cp big-math-2.3.0.jar:kotlin-argparser-2.0.7.jar:jackson-core-2.11.3.jar:jackson-module-kotlin-2.11.3.jar:jackson-annotations-2.11.3.jar:jackson-databind-2.11.3.jar:. BirthdayProblemSolver.kt
-
-To run the compiled classes with arguments, execute (for example):
-
-    > kotlin -cp big-math-2.3.0.jar:xenocom-0.0.7.jar:kotlin-argparser-2.0.7.jar:jackson-core-2.11.3.jar:jackson-module-kotlin-2.11.3.jar:jackson-annotations-2.11.3.jar:jackson-databind-2.11.3.jar:. com.bdayprob.BirthdayProblem\$CLISolver 366 -n 23 -a
+    D [-n SAMPLES] [-p PROBABILITY] [-b] [-c] [-t] [-s] [-e] [-a] [-j] [--prec PREC]
     
-To run the compiled thin jar with arguments (no dependencies included), execute (for example):
-
-    > kotlin -cp big-math-2.3.0.jar:xenocom-0.0.7.jar:kotlin-argparser-2.0.7.jar:jackson-core-2.11.3.jar:jackson-module-kotlin-2.11.3.jar:jackson-annotations-2.11.3.jar:jackson-databind-2.11.3.jar:BirthdayProblem-1.0.jar:. com.bdayprob.BirthdayProblem\$CLISolver 366 -n 23 -a
-
-To run the compiled fat jar with arguments (all dependencies included except Kotlin runtime), simply execute (for example):
-
-    > kotlin -cp BirthdayProblem-1.0-fat.jar com.bdayprob.BirthdayProblem\$CLISolver 366 -n 23 -a
-    
-or
-
-    > java -jar BirthdayProblem-1.0-fat.jar 366 -n 23 -a
+The meaning of the flags can be found in the table further up. An additional `--help` flag is also available to provide information.
     
 ### Examples
 
-Example usage of standalone application on command line (the longer version using `kotlin` command from above works as well in all cases):
+Example usage of standalone application on command line:
 
 #### Example 1
     
@@ -107,24 +87,31 @@ Use the following command on the standalone application to get information about
 
 The following shows example usage of this project in another application:
 
-    import com.bdayprob.BirthdayProblem.Solver
-    import com.bdayprob.BirthdayProblem.CalcPrecision
-    import java.math.BigDecimal
+    from BirthdayProblem import BirthdayProblem
+    from decimal import *
     
-    // Program.kt
+    # Program.py
     
-    fun main() {
-        val (p, pMethod) = Solver.solveForP(BigDecimal("366"), BigDecimal("23"), false, false, CalcPrecision.EXACT)
-        val (n, nMethod) = Solver.solveForN(BigDecimal("52"), BigDecimal("0.5"), false, true)
-    }
+    Solver = BirthdayProblem.Solver
+    CalcPrecision = Solver.CalcPrecision
     
-The functions to call has signatures
+    [p, pMethod] = Solver.solveForP(Decimal('366'), Decimal('23'), False, False, CalcPrecision.EXACT)
+    [n, nMethod] = Solver.solveForN(Decimal('52'), Decimal('0.5'), False, True)
 
-    fun solveForP(dOrDLog: BigDecimal, nOrNLog: BigDecimal, isBinary: Boolean, isCombinations: Boolean, method: CalcPrecision): Pair<BigDecimal, CalcPrecision>
-    fun solveForN(dOrDLog: BigDecimal, pIn: BigDecimal, isBinary: Boolean, isCombinations: Boolean): Pair<BigDecimal, CalcPrecision>
+    
+The functions to call have signatures
 
+    def solveForP(dOrDLog, nOrNLog, isBinary, isCombinations, method)
+    def solveForN(dOrDLog, p, isBinary, isCombinations)
+    
 and may throw exceptions.
 
+## Testing
+
+To run tests, simply execute
+
+    > python RunTests.py
+    
 ## Author
 
 Elias Lousseief (2020)
