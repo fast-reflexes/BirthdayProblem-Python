@@ -12,7 +12,7 @@ import json
 
 def runTest(testData, resFn, assemblerFn, dividerFn):
 	failed = 0
-	for i, (args, ans) in enumerate(testData, start = 1):
+	for i, (args, shouldTestSucceed, ans) in enumerate(testData, start = 1):
 		print("Test " + str(i) + ": input '" + args + "'")
 		error = False
 		ansSingle = assemblerFn(ans)
@@ -21,16 +21,21 @@ def runTest(testData, resFn, assemblerFn, dividerFn):
 		except BaseException as e:
 			error = True
 			resSingle = e
-		if error or ansSingle != resSingle:
+		if (shouldTestSucceed and (error or ansSingle != resSingle)) or (not shouldTestSucceed and not error) :
 			print("-> failed:")
-			if error:
-				print("    Due to error: " + str(resSingle))
-			else:	
-				print("    Expected: " )
+			if(shouldTestSucceed):
+				if(error):
+					print("    Due to error: " + str(resSingle))
+				else:
+					print("    Expected: " )
+					for row in dividerFn(resSingle):
+						print("        " + str(row))
+					print("    to be equal to: ")
+					for row in dividerFn(ansSingle):
+						print("        " + str(row))
+			else:
+				print("    Due to error: test should have failed but was successful with output ...")
 				for row in dividerFn(resSingle):
-					print("        " + str(row))
-				print("    to be equal to: ")
-				for row in dividerFn(ansSingle):
 					print("        " + str(row))
 			failed += 1
 		else:

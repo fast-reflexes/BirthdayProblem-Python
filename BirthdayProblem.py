@@ -1,4 +1,3 @@
-import math
 from decimal import *
 import argparse
 from enum import Enum
@@ -22,7 +21,7 @@ class _DecimalContext:
 
 	@staticmethod
 	def adjustPrecision(integerPartSz):
-		_DecimalContext.ctx.prec = integerPartSz + 1 + _DecimalContext.DECIMAL_PRECISION
+		_DecimalContext.ctx.prec = ((integerPartSz + 1) if(integerPartSz > 0) else 1) + _DecimalContext.DECIMAL_PRECISION
 
 class _DecimalFns:
 
@@ -34,6 +33,14 @@ class _DecimalFns:
 	########################################################################################################################################################################################################
 	########################################################################################################################################################################################################
 
+	# basic constants
+	ZERO = Decimal("0")
+	HALF = Decimal("0.5")
+	ONE = Decimal("1")
+	TWO = Decimal("2")
+	TEN = Decimal("10")
+	HUNDRED = Decimal("100")
+
 	# hard-coded constants with 100 / 1000 decimal precision
 	PI_100 = Decimal('3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679')
 	PI_1000 = Decimal('3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989')
@@ -43,9 +50,9 @@ class _DecimalFns:
 	E = E_1000
 
 	# e base and 2 base logarithms of 2 and PI for repeatedly used values and logarithm base conversions
-	LOG_E_2 = _DecimalContext.ctx.ln(Decimal('2'))
+	LOG_E_2 = _DecimalContext.ctx.ln(TWO)
 	LOG_E_PI = _DecimalContext.ctx.ln(PI)
-	LOG_2_E = _DecimalContext.ctx.divide(Decimal('1'), LOG_E_2)
+	LOG_2_E = _DecimalContext.ctx.divide(ONE, LOG_E_2)
 	LOG_2_PI = _DecimalContext.ctx.divide(LOG_E_PI, LOG_E_2)
 
 	@staticmethod
@@ -54,11 +61,11 @@ class _DecimalFns:
 
 	@staticmethod
 	def isGreaterThan(a, b):
-		return _DecimalContext.ctx.compare(a, b) == Decimal('1')
+		return _DecimalContext.ctx.compare(a, b) == _DecimalFns.ONE
 	
 	@staticmethod
 	def areEqual(a, b):
-		return _DecimalContext.ctx.compare(a, b) == Decimal('0')
+		return _DecimalContext.ctx.compare(a, b) == _DecimalFns.ZERO
 
 	@staticmethod
 	def areNotEqual(a, b):
@@ -66,31 +73,31 @@ class _DecimalFns:
 
 	@staticmethod
 	def isZero(a):
-		return _DecimalFns.areEqual(a, Decimal('0'))
+		return a.is_zero()
 
 	@staticmethod
 	def isOne(a):
-		return _DecimalFns.areEqual(a, Decimal('1'))
+		return _DecimalFns.areEqual(a, _DecimalFns.ONE)
 
 	@staticmethod
 	def isNotOne(a):
-		return _DecimalFns.areNotEqual(a, Decimal('1'))
+		return _DecimalFns.areNotEqual(a, _DecimalFns.ONE)
 
 	@staticmethod
 	def isGreaterThanOne(a):
-		return _DecimalFns.isGreaterThan(a, Decimal('1'))	
+		return _DecimalFns.isGreaterThan(a, _DecimalFns.ONE)
 
 	@staticmethod
 	def isLessThanOne(a):
-		return _DecimalFns.isLessThan(a, Decimal('1'))	
+		return _DecimalFns.isLessThan(a, _DecimalFns.ONE)
 
 	@staticmethod
 	def isGreaterThanZero(a):
-		return _DecimalFns.isGreaterThan(a, Decimal('0'))	
+		return _DecimalFns.isGreaterThan(a, _DecimalFns.ZERO)
 
 	@staticmethod
 	def isLessThanZero(a):
-		return _DecimalFns.isLessThan(a, Decimal('0'))
+		return _DecimalFns.isLessThan(a, _DecimalFns.ZERO)
 
 	@staticmethod
 	def isInteger(a):
@@ -98,7 +105,7 @@ class _DecimalFns:
 
 	@staticmethod
 	def toPercent(p):
-		return _DecimalContext.ctx.multiply(p, Decimal('100'))
+		return _DecimalContext.ctx.multiply(p, _DecimalFns.HUNDRED)
 
 	'''
 		facultyNTakeM calculates (n)_m = n! / (n - m)!. This can be done naively by calculating (n)_m directly or by first calculating n! and then dividing it by (n - m)!. 
@@ -107,8 +114,8 @@ class _DecimalFns:
 	# input in natural numbers, output in natural logarithms. Not suitable for large m! n! can be calculated naively by using n = m
 	@staticmethod
 	def facultyNTakeMNaive(n, m):
-		nTakeMFacLogE = Decimal(0)
-		for i in range(int(n),int(n - m), -1):
+		nTakeMFacLogE = _DecimalFns.ZERO
+		for i in range(int(n),int(_DecimalContext.ctx.subtract(n, m)), -1):
 			nTakeMFacLogE = _DecimalContext.ctx.add(nTakeMFacLogE, _DecimalContext.ctx.ln(Decimal(i)))
 		return nTakeMFacLogE
 
@@ -137,7 +144,7 @@ class _DecimalFns:
 	@staticmethod
 	def facultyLog(n, nLog, isLog2):
 		if _DecimalFns.isZero(n): # n == 0
-			return Decimal('1')
+			return _DecimalFns.ONE
 		else:
 			if isLog2:
 				return _DecimalFns.__facultyStirlingLog2(n, nLog)
@@ -160,9 +167,9 @@ class _DecimalFns:
 	# in e-log space
 	@staticmethod
 	def __facultyStirlingLogE(n, nLogE):
-		t1InnerSubtrNFacLogE = _DecimalContext.ctx.subtract(nLogE, Decimal('1'))
+		t1InnerSubtrNFacLogE = _DecimalContext.ctx.subtract(nLogE, _DecimalFns.ONE)
 		t1NFacLogE = _DecimalContext.ctx.multiply(n, t1InnerSubtrNFacLogE)
-		t2NFacLogE = _DecimalContext.ctx.multiply(Decimal('0.5'), _DecimalContext.ctx.add(_DecimalContext.ctx.add(_DecimalFns.LOG_E_PI, _DecimalFns.LOG_E_2), nLogE))
+		t2NFacLogE = _DecimalContext.ctx.multiply(_DecimalFns.HALF, _DecimalContext.ctx.add(_DecimalContext.ctx.add(_DecimalFns.LOG_E_PI, _DecimalFns.LOG_E_2), nLogE))
 		nFacLogE = _DecimalContext.ctx.add(t1NFacLogE, t2NFacLogE)
 		return nFacLogE
 
@@ -181,7 +188,7 @@ class _DecimalFns:
 	def __facultyStirlingLog2(n, nLog2):
 		t1InnerSubtrNFacLog2 = _DecimalContext.ctx.subtract(nLog2, _DecimalFns.LOG_2_E)
 		t1NFacLog2 = _DecimalContext.ctx.multiply(n, t1InnerSubtrNFacLog2)
-		t2NFacLog2 = _DecimalContext.ctx.multiply(Decimal('0.5'), _DecimalContext.ctx.add(_DecimalContext.ctx.add(_DecimalFns.LOG_2_PI , Decimal('1')), nLog2))
+		t2NFacLog2 = _DecimalContext.ctx.multiply(_DecimalFns.HALF, _DecimalContext.ctx.add(_DecimalContext.ctx.add(_DecimalFns.LOG_2_PI, _DecimalFns.ONE), nLog2))
 		nFacLog2 = _DecimalContext.ctx.add(t1NFacLog2, t2NFacLog2)
 		return nFacLog2
 
@@ -247,10 +254,10 @@ class _BirthdayProblemSolverChecked:
 	def birthdayProblem(maybeD, dLog, maybeN, nLog, calcPrecision, dIsLog2):
 		if (dIsLog2 and _DecimalFns.isLessThanOne(nLog)) or (not dIsLog2 and _DecimalFns.isLessThan(nLog, _DecimalFns.LOG_E_2)):
 			# trivially, if you sample less than 2 times, the chance of a non-unique sample is 0%
-			return (Decimal('0'), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
+			return (_DecimalFns.ZERO, _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 		elif _DecimalFns.isGreaterThan(nLog, dLog):
 			# trivially, if you sample more times than the number of items in the set to sample from, the chance of a non-unique item is 100%
-			return (Decimal('1'), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
+			return (_DecimalFns.ONE, _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 		else:
 
 			if calcPrecision in [_BirthdayProblemSolver.CalcPrecision.EXACT, _BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX] and (maybeD is None or maybeN is None):
@@ -291,15 +298,15 @@ class _BirthdayProblemSolverChecked:
 	def birthdayProblemInv(maybeD, dLog, p, dIsLog2):
 		if _DecimalFns.isZero(p):
 			# trivially, to have a 0% chance of picking a duplicate, just pick one sample (or 0)
-			return (Decimal('0') if dIsLog2 else Decimal('1'), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
+			return (_DecimalFns.ZERO if dIsLog2 else _DecimalFns.ONE, _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 		elif _DecimalFns.isOne(p) or _DecimalFns.isGreaterThanOne(p):
 			# also trivially, to have a 100% (or more) chance of picking a duplicate, pick one more than the number of items in the input
 			if dIsLog2:
 				# if d is too large to calculate adding 1 to it is negligible
-				return (dLog if maybeD is None else _DecimalContext.ctx.divide(_DecimalContext.ctx.ln(_DecimalContext.ctx.add(maybeD, Decimal('1'))), _DecimalFns.LOG_E_2), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
+				return (dLog if maybeD is None else _DecimalContext.ctx.divide(_DecimalContext.ctx.ln(_DecimalContext.ctx.add(maybeD, _DecimalFns.ONE)), _DecimalFns.LOG_E_2), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 			else:
 				# if d is too large to calculate adding 1 to it is negligible
-				return (dLog if maybeD is None else _DecimalContext.ctx.add(maybeD, Decimal('1')), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
+				return (dLog if maybeD is None else _DecimalContext.ctx.add(maybeD, _DecimalFns.ONE), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 		else:
 			# carry out the calculations
 			_DecimalContext.adjustPrecision(dLog.adjusted())
@@ -344,7 +351,7 @@ class _BirthdayProblemSolverChecked:
 		possibleLogE = _DecimalContext.ctx.multiply(dLogE, n)
 		negProbLogE = _DecimalContext.ctx.subtract(favourableLogE, possibleLogE)
 		negProb = _DecimalContext.ctx.exp(negProbLogE)
-		prob = _DecimalContext.ctx.subtract(Decimal('1'), negProb) # complement
+		prob = _DecimalContext.ctx.subtract(_DecimalFns.ONE, negProb) # complement
 		return prob
 
 	# calculates result in base 2 logarithmic space with base 2. Outputs probability in [0, 1]. Assumes non-trivial solution.
@@ -353,9 +360,9 @@ class _BirthdayProblemSolverChecked:
 		favourableLog2 = _DecimalFns.facultyNTakeMLog2(d, dLog2, n) # numerator
 		possibleLog2 = _DecimalContext.ctx.multiply(dLog2, n) # denominator
 		negProbLog2 = _DecimalContext.ctx.subtract(favourableLog2, possibleLog2) # division in log space is subtraction
-		negProb = _DecimalContext.ctx.power(Decimal('2'), negProbLog2) # go back to non-logarithmic space
-		prob = _DecimalContext.ctx.subtract(Decimal('1'), negProb) # complement
-		return prob
+		negProb = _DecimalContext.ctx.power(_DecimalFns.TWO, negProbLog2) # go back to non-logarithmic space
+		prob = _DecimalContext.ctx.subtract(_DecimalFns.ONE, negProb) # complement
+		return prob if(_DecimalFns.isGreaterThanZero(prob)) else _DecimalFns.ZERO # fix precision errors leading to negative result
 
 	# calculates the result in natural base logarithms.
 	@staticmethod
@@ -364,15 +371,15 @@ class _BirthdayProblemSolverChecked:
 		possibleLogE = _DecimalContext.ctx.multiply(dLogE, n)
 		negProbLogE = _DecimalContext.ctx.subtract(favourableLogE, possibleLogE) # division in log space is subtraction
 		negProb = _DecimalContext.ctx.exp(negProbLogE) # back to non-logarithmic space
-		prob = _DecimalContext.ctx.subtract(Decimal('1'), negProb) 
-		return prob
+		prob = _DecimalContext.ctx.subtract(_DecimalFns.ONE, negProb)
+		return prob if(_DecimalFns.isGreaterThanZero(prob)) else _DecimalFns.ZERO # fix precision errors leading to negative result
 
 
 	'''
 		In the previous versions we used an exact version of the main formula, even though Stirling's approximation was used for faculties. In the next version, we use an approximation for the main formula
-		which is based on Taylor series. This approximation is the best one available (it mght be improved by adding other terms but the method is still the same).
+		which is based on Taylor series. This approximation is the best one available (it might be improved by adding other terms but the method is still the same).
 
-		The formula is based on the observation that ln(n!) = ln(n) + ln(n - 1): 
+		The formula is based on the observation that ln(n!) = ln(n) + ln(n - 1) + ... + ln(1): 
 
 			P(n, d) 			~ 1 - e^(-(n^2/2d))
 
@@ -393,7 +400,7 @@ class _BirthdayProblemSolverChecked:
 
 			lg(-ln(^P(n, d)))	~ lg(n^2/2d)
 
-		lg(-ln(^P(n, d))) is actually defined in the real domain here since ^P(n, d) <= 1.0, which gives that ln(^P(n ,d)) <= 0), which gives -ln(^P(n, d)) >= 0
+		lg(-ln(^P(n, d))) is actually defined in the real domain here since 0.0 <= ^P(n, d) <= 1.0, which gives that ln(^P(n ,d)) <= 0), which gives -ln(^P(n, d)) >= 0
 								
 								= lg(n^2) - lg(2d)
 								= 2 * lg(n) - (lg(2) + lg(d))
@@ -407,13 +414,13 @@ class _BirthdayProblemSolverChecked:
 	# calculates result in base-2 logarithms (second level of logs)
 	@staticmethod
 	def __birthdayProblemTaylorApproxLog2(dLog2, nLog2):
-		t1NegProbMinusLogELog2 = _DecimalContext.ctx.multiply(nLog2, Decimal('2'))
-		t2NegProbMinusLogELog2  = _DecimalContext.ctx.add(Decimal(dLog2), Decimal('1'))
+		t1NegProbMinusLogELog2 = _DecimalContext.ctx.multiply(nLog2, _DecimalFns.TWO)
+		t2NegProbMinusLogELog2  = _DecimalContext.ctx.add(Decimal(dLog2), _DecimalFns.ONE)
 		negProbMinusLogELog2 = _DecimalContext.ctx.subtract(t1NegProbMinusLogELog2 , t2NegProbMinusLogELog2 )
-		negProbMinusLogE = _DecimalContext.ctx.power(Decimal('2'), negProbMinusLogELog2) # go back to non-logarithmic space
+		negProbMinusLogE = _DecimalContext.ctx.power(_DecimalFns.TWO, negProbMinusLogELog2) # go back to non-logarithmic space
 		negProbLogE = _DecimalContext.ctx.minus(negProbMinusLogE)
 		negProb = _DecimalContext.ctx.exp(negProbLogE)
-		prob = _DecimalContext.ctx.subtract(Decimal('1'), negProb) # complement
+		prob = _DecimalContext.ctx.subtract(_DecimalFns.ONE, negProb) # complement
 		return prob
 
 	'''
@@ -425,13 +432,13 @@ class _BirthdayProblemSolverChecked:
 	# calculates result in natural logarithmic space
 	@staticmethod
 	def __birthdayProblemTaylorApproxLogE(dLogE, nLogE):
-		t1NegProbMinusLogELogE = _DecimalContext.ctx.multiply(nLogE, Decimal('2'))
+		t1NegProbMinusLogELogE = _DecimalContext.ctx.multiply(nLogE, _DecimalFns.TWO)
 		t2NegProbMinusLogELogE  = _DecimalContext.ctx.add(Decimal(dLogE), _DecimalFns.LOG_E_2)
 		negProbMinusLogELogE = _DecimalContext.ctx.subtract(t1NegProbMinusLogELogE , t2NegProbMinusLogELogE)
 		negProbMinusLogE = _DecimalContext.ctx.exp(negProbMinusLogELogE) # go back to non-logarithmic space
 		negProbLogE = _DecimalContext.ctx.minus(negProbMinusLogE)
 		negProb = _DecimalContext.ctx.exp(negProbLogE)
-		prob = _DecimalContext.ctx.subtract(Decimal('1'), negProb) # complement
+		prob = _DecimalContext.ctx.subtract(_DecimalFns.ONE, negProb) # complement
 		return prob
 
 	'''
@@ -475,9 +482,9 @@ class _BirthdayProblemSolverChecked:
 	# with base e logarithms
 	@staticmethod
 	def __birthdayProblemInvTaylorApproxLogE(dLogE, p):
-		t1SamplesLogE2 = _DecimalContext.ctx.ln(_DecimalContext.ctx.subtract(Decimal('1'), p))
+		t1SamplesLogE2 = _DecimalContext.ctx.ln(_DecimalContext.ctx.subtract(_DecimalFns.ONE, p))
 		t1SamplesLogE = _DecimalContext.ctx.ln(_DecimalContext.ctx.minus(t1SamplesLogE2))
-		samplesLogE = _DecimalContext.ctx.multiply(Decimal('0.5'), _DecimalContext.ctx.add(t1SamplesLogE, _DecimalContext.ctx.add(_DecimalFns.LOG_E_2, dLogE)))
+		samplesLogE = _DecimalContext.ctx.multiply(_DecimalFns.HALF, _DecimalContext.ctx.add(t1SamplesLogE, _DecimalContext.ctx.add(_DecimalFns.LOG_E_2, dLogE)))
 		return samplesLogE
 
 	'''
@@ -519,9 +526,9 @@ class _BirthdayProblemNumberFormatter:
 	@staticmethod
 	def isExpReprEqualToStandardRepr(dBase, dExp10, originalD):
 		originalDExp = originalD.adjusted() # powers of 10 to filter out from the original input
-		originalD = _DecimalContext.ctx.divide(originalD, _DecimalContext.ctx.power(Decimal('10'), Decimal(originalDExp)))
+		originalD = _DecimalContext.ctx.divide(originalD, _DecimalContext.ctx.power(_DecimalFns.TEN, Decimal(originalDExp)))
 		base10PowersDiff =  dExp10 - originalDExp # scale dBase so that they have the same number of powers of 10 filtered out
-		leveledD = _DecimalContext.ctx.multiply(dBase, _DecimalContext.ctx.power(Decimal('10'), Decimal(base10PowersDiff)))
+		leveledD = _DecimalContext.ctx.multiply(dBase, _DecimalContext.ctx.power(_DecimalFns.TEN, Decimal(base10PowersDiff)))
 		equal = _DecimalFns.isLessThan(_DecimalContext.ctx.abs(_DecimalContext.ctx.subtract(originalD, leveledD)), _BirthdayProblemNumberFormatter.ERR)
 		return equal
 
@@ -536,11 +543,11 @@ class _BirthdayProblemNumberFormatter:
 				# loop here due to floating point arithmetic
 				# example: d can, after filtering out powers of 10, be 9.9999 which rounds to 10 in which case we can filter out another power of 10 before proceeding
 				roundExp = d.adjusted() # current powers of 10 filtered out
-				d = _DecimalContext.ctx.divide(d, _DecimalContext.ctx.power(Decimal('10'), Decimal(roundExp))) 
+				d = _DecimalContext.ctx.divide(d, _DecimalContext.ctx.power(_DecimalFns.TEN, Decimal(roundExp)))
 				exp += roundExp
 				d = _DecimalContext.ctx.add(d, _BirthdayProblemNumberFormatter.ERR) # add error constant to get around rounding errors due to floating point arithmetic (for example, 2.5 being stored as 2.49999999)
 				d = d.to_integral_value() # round d to integer
-				if _DecimalFns.isLessThan(d, Decimal('10')):
+				if _DecimalFns.isLessThan(d, _DecimalFns.TEN):
 					# d is less than 10, we have a nice base 10 representation
 					equalOrApprox = "=" if _BirthdayProblemNumberFormatter.isExpReprEqualToStandardRepr(d, exp, inputD) else "≈"
 					return equalOrApprox + (str(d) + "*" if _DecimalFns.isNotOne(d) else "")  + "10^" + str(exp)
@@ -770,8 +777,8 @@ class _BirthdayProblemInputHandler:
 			if isCombinations:
 				# d is the size of a set of items, calculate the number of permutations that is possible with it
 				if isBinary:	
-					dLog = _DecimalFns.facultyLog(_DecimalContext.ctx.power(Decimal('2'), dOrDLog), dOrDLog, True)
-					d = _DecimalContext.ctx.power(Decimal('2'), dLog)
+					dLog = _DecimalFns.facultyLog(_DecimalContext.ctx.power(_DecimalFns.TWO, dOrDLog), dOrDLog, True)
+					d = _DecimalContext.ctx.power(_DecimalFns.TWO, dLog)
 				else:
 					dLog = _DecimalFns.facultyLog(d, _DecimalContext.ctx.ln(dOrDLog), False)
 					d = _DecimalContext.ctx.exp(dLog)
@@ -779,7 +786,7 @@ class _BirthdayProblemInputHandler:
 				# d is already the size of the set of combinations
 				if isBinary:
 					dLog = dOrDLog
-					d = _DecimalContext.ctx.power(Decimal('2'), dOrDLog)
+					d = _DecimalContext.ctx.power(_DecimalFns.TWO, dOrDLog)
 				else:
 					dLog = _DecimalContext.ctx.ln(dOrDLog)
 		except Overflow:
@@ -790,10 +797,10 @@ class _BirthdayProblemInputHandler:
 			try:
 				if isBinary:
 					nLog = nOrNLog
-					n = _DecimalContext.ctx.power(Decimal('2'), nLog)
+					n = _DecimalContext.ctx.power(_DecimalFns.TWO, nLog)
 				else:
 					# for all purposes, sampling 0 times is the same as samping 1 times
-					nLog = _DecimalContext.ctx.ln(nOrNLog) if(_DecimalFns.isGreaterThanZero(nOrNLog)) else Decimal('0')
+					nLog = _DecimalContext.ctx.ln(nOrNLog) if(_DecimalFns.isGreaterThanZero(nOrNLog)) else _DecimalFns.ZERO
 			except Overflow:
 				n = None # calc of n threw which means n should be None
 
@@ -896,7 +903,9 @@ class _BirthdayProblemCLISolver:
 			if(isMainProgram):
 				varMap = { "dOrDLog": "D", "nOrNLog": "N", "p": "probability", "isBinary": "binary", "isCombinations": "combinations", "isStirling": "stirling", "isTaylor": "taylor", "isExact": "exact", "isAll": "all" }
 			d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, isJson, prec = _BirthdayProblemCLISolver.__setup(args, varMap)
-			
+
+			if(dLog is None or dLog.as_tuple()[2] > 0):
+				raise Exception("couldn't setup calculations because input numbers were too large: the log of the resulting input set size D must not exceed 1000 digits.")
 			if(isJson):
 				return _BirthdayProblemCLISolver.solveJson(d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, prec, isMainProgram)
 			else:
@@ -905,6 +914,7 @@ class _BirthdayProblemCLISolver:
 		except BaseException as e:
 			if(isMainProgram):
 				print()
+				print("Failed due to error: ", e)
 				sys.exit("program terminated abnormally with exit code 1")
 			else:
 				raise e

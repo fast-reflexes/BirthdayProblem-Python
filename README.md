@@ -128,5 +128,13 @@ Elias Lousseief (2020)
   *  Added rounding upwards (ceiling) instead of regular rounding (half up) on non-logarithmic solutions for `N`.
   *  Removed output approximation character on non-logarithmic solutions for `N`.
   *  Added flag `--prec` for command-line interface allowing the user to choose output precision, where applicable, in [0, 10] with default 10.
+* *v. 1.2*
+  *  Corrected calculation of adjusted precision during calculations.
+  *  Added constants for repeatedly used values and replaced relevant uses.
+  *  Corrected exact / naive calculation of `m` take `n`.
+  *  Adjusted method using Stirling's formula so that it always returns probablity 0 or more (can otherwise return slightly less than 0 due to precision errors).
+  *  Changed preprocessing so that the application fails whenever the max precision is insufficient to represent the resulting log of set size `D`.
+  *  Small vocabular fixes in descriptions and comments.
+  *  Fixed tests.
     
 
