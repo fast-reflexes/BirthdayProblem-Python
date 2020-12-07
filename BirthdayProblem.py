@@ -904,8 +904,9 @@ class _BirthdayProblemCLISolver:
 				varMap = { "dOrDLog": "D", "nOrNLog": "N", "p": "probability", "isBinary": "binary", "isCombinations": "combinations", "isStirling": "stirling", "isTaylor": "taylor", "isExact": "exact", "isAll": "all" }
 			d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, isJson, prec = _BirthdayProblemCLISolver.__setup(args, varMap)
 
-			if(dLog is None or dLog.as_tuple()[2] > 0):
+			if(dLog is None or dLog.as_tuple()[2] > 0): # implies the precision was not enough to store the size of this number, a scale had to be used
 				raise Exception("couldn't setup calculations because input numbers were too large: the log of the resulting input set size D must not exceed 1000 digits.")
+
 			if(isJson):
 				return _BirthdayProblemCLISolver.solveJson(d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, prec, isMainProgram)
 			else:
