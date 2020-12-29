@@ -136,5 +136,14 @@ Elias Lousseief (2020)
   *  Changed preprocessing so that the application fails whenever the max precision is insufficient to represent the resulting log of set size `D`.
   *  Small vocabular fixes in descriptions and comments.
   *  Fixed tests.
+* *v. 1.3*
+  *  Improved exception handling:
+     *   Error codes
+     *   Exception class
+     *   Improved checks on input sizes before starting calculations
+     *   Returning error codes when terminating program with an error
+     *   Returning more specific error messages when a method fails
+  *  Simplified conversion to log10 form
+  *  Corrected minor bug in `_BirthdayProblemTextFormatter.methodToText`
     
 

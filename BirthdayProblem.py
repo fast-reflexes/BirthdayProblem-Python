@@ -1,9 +1,40 @@
 from decimal import *
 import argparse
-from enum import Enum
+from enum import Enum, IntEnum
 import re
 import sys
 import json
+import traceback
+
+class SolverException(Exception):
+
+	def __init__(self, code, method = None, message = "(no message available)"):
+		self.code = code
+		self.method = method
+		self.message = message
+
+	def __str__(self):
+		methodText = _BirthdayProblemTextFormatter.methodToText(self.method) if self.method is not None else "(method not available)"
+		messages = {
+			SolverErrorCode.D_NOT_CALCULATED: "d exceeds maximum size and is needed to initialize calculations",
+			SolverErrorCode.DLOG_NOT_CALCULATED: "dLog exceeds maximum size and is needed to initialize calculations",
+			SolverErrorCode.D_NEEDED_FOR_METHOD: "d exceeds maximum size and is needed for method",
+			SolverErrorCode.DLOG_NEEDED_FOR_METHOD: "dLog exceeds maximum size and is needed for method",
+			SolverErrorCode.TOO_HIGH_PRECISION: "needed precision for method exceeds maximum precision",
+			SolverErrorCode.BAD_INPUT: "bad input: " + self.message
+		}
+		return messages.get(self.code, "an unknown error was encountered for the " + methodText + " method with code " + str(self.code))
+
+
+
+class SolverErrorCode(IntEnum):
+	UNKNOWN_ERROR = 1,
+	BAD_INPUT = 2,
+	DLOG_NOT_CALCULATED = 3,
+	D_NOT_CALCULATED = 4,
+	D_NEEDED_FOR_METHOD = 5,
+	DLOG_NEEDED_FOR_METHOD = 6,
+	TOO_HIGH_PRECISION = 7,
 
 class _DecimalContext:
 
@@ -221,8 +252,8 @@ class _BirthdayProblemSolver:
 		_DecimalContext.reset() # reset to initial context precision
 		_BirthdayProblemInputHandler.sanitize(dOrDLog, nOrNLog, None, isBinary, isCombinations, method == _BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX, method == _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, method == _BirthdayProblemSolver.CalcPrecision.EXACT, False)
 		d, dLog, n, nLog, _ = _BirthdayProblemInputHandler.setup(dOrDLog, nOrNLog, None, isBinary, isCombinations)
-		if(nLog is None or dLog is None):
-			raise Exception("dLog or nLog was not successfully calculated and are both needed for " + _BirthdayProblemTextFormatter.methodToText(method) + " method.")
+		if(dLog is None):
+			raise SolverException(SolverErrorCode.DLOG_NOT_CALCULATED)
 		return _BirthdayProblemSolverChecked.birthdayProblem(d, dLog, n, nLog, method, isBinary)
 
 	'''
@@ -236,7 +267,7 @@ class _BirthdayProblemSolver:
 		_BirthdayProblemInputHandler.sanitize(dOrDLog, None, p, isBinary, isCombinations, False, False, False, False)
 		d, dLog, _, _, p = _BirthdayProblemInputHandler.setup(dOrDLog, None, p, isBinary, isCombinations)
 		if(dLog is None):
-			raise Exception("dLog was not successfully calculated and is needed for Taylor method.")
+			raise SolverException(SolverErrorCode.DLOG_NOT_CALCULATED)
 		return _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
 
 
@@ -262,14 +293,14 @@ class _BirthdayProblemSolverChecked:
 
 			if calcPrecision in [_BirthdayProblemSolver.CalcPrecision.EXACT, _BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX] and (maybeD is None or maybeN is None):
 				# d and n are needed for these methods
-				raise Exception("d or n was not successfully calculated and are both needed for " + _BirthdayProblemTextFormatter.methodToText(calcPrecision) + " method.")
+				raise SolverException(SolverErrorCode.D_NEEDED_FOR_METHOD, calcPrecision)
 
 			# carry out the calculations
 			_DecimalContext.adjustPrecision(maybeD.adjusted()) if maybeD is not None else _DecimalContext.adjustPrecision(dLog.adjusted())
 			if calcPrecision == _BirthdayProblemSolver.CalcPrecision.EXACT:
 				if _DecimalContext.isTooPrecise():
 					# with a too high precision, even the simplest calculation takes too long
-					raise Exception("necessary precision is too high for " + _BirthdayProblemTextFormatter.methodToText(calcPrecision) + " method, can't continue")
+					raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, calcPrecision)
 				if dIsLog2:
 					return (_BirthdayProblemSolverChecked.__birthdayProblemExact(maybeD, _DecimalContext.ctx.divide(dLog, _DecimalFns.LOG_2_E), maybeN), _BirthdayProblemSolver.CalcPrecision.EXACT)
 				else:
@@ -279,7 +310,7 @@ class _BirthdayProblemSolverChecked:
 					_DecimalContext.adjustPrecision(dLog.adjusted())
 					if _DecimalContext.isTooPrecise():
 						# with a too high precision, even the simplest calculation takes too long
-						raise Exception("necessary precision is too high for " + _BirthdayProblemTextFormatter.methodToText(calcPrecision) + " method, can't continue")
+						raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, calcPrecision)
 				if dIsLog2:
 					return (_BirthdayProblemSolverChecked.__birthdayProblemTaylorApproxLog2(dLog, nLog), _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
 				else:
@@ -287,7 +318,7 @@ class _BirthdayProblemSolverChecked:
 			else:
 				if _DecimalContext.isTooPrecise():
 					# with a too high precision, even the simplest calculation takes too long
-					raise Exception("necessary precision is too high for " + _BirthdayProblemTextFormatter.methodToText(calcPrecision) + " method, can't continue")
+					raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, calcPrecision)
 				if dIsLog2:
 					return (_BirthdayProblemSolverChecked.__birthdayProblemStirlingApproxLog2(maybeD, dLog, maybeN), _BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX)
 				else:
@@ -309,10 +340,12 @@ class _BirthdayProblemSolverChecked:
 				return (dLog if maybeD is None else _DecimalContext.ctx.add(maybeD, _DecimalFns.ONE), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 		else:
 			# carry out the calculations
-			_DecimalContext.adjustPrecision(dLog.adjusted())
+			_DecimalContext.adjustPrecision(maybeD.adjusted()) if maybeD is not None else _DecimalContext.adjustPrecision(dLog.adjusted())
 			if _DecimalContext.isTooPrecise():
-				# with a too high precision, even the simplest calculation takes too long
-				raise Exception("necessary precision is too high for Taylor method, can't continue")
+				_DecimalContext.adjustPrecision(dLog.adjusted())
+				if _DecimalContext.isTooPrecise():
+					# with a too high precision, even the simplest calculation takes too long
+					raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
 			if dIsLog2:
 				return (_BirthdayProblemSolverChecked.__birthdayProblemInvTaylorApproxLog2(dLog, p), _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
 			else:
@@ -539,18 +572,10 @@ class _BirthdayProblemNumberFormatter:
 		exp = 0 # powers of 10 filtered out of d
 		if(_DecimalFns.isGreaterThan(_BirthdayProblemNumberFormatter.LOG10_LOWER_THRESHOLD, d) or _DecimalFns.isLessThan(_BirthdayProblemNumberFormatter.LOG10_UPPER_THRESHOLD, d)) and _DecimalFns.isGreaterThanZero(d):
 			# d is smaller than the lower log 10 repr threshold or larger than the upper log 10 repr threshold, and not 0, so a complementary log 10 representation is called for
-			while True:
-				# loop here due to floating point arithmetic
-				# example: d can, after filtering out powers of 10, be 9.9999 which rounds to 10 in which case we can filter out another power of 10 before proceeding
-				roundExp = d.adjusted() # current powers of 10 filtered out
-				d = _DecimalContext.ctx.divide(d, _DecimalContext.ctx.power(_DecimalFns.TEN, Decimal(roundExp)))
-				exp += roundExp
-				d = _DecimalContext.ctx.add(d, _BirthdayProblemNumberFormatter.ERR) # add error constant to get around rounding errors due to floating point arithmetic (for example, 2.5 being stored as 2.49999999)
-				d = d.to_integral_value() # round d to integer
-				if _DecimalFns.isLessThan(d, _DecimalFns.TEN):
-					# d is less than 10, we have a nice base 10 representation
-					equalOrApprox = "=" if _BirthdayProblemNumberFormatter.isExpReprEqualToStandardRepr(d, exp, inputD) else "≈"
-					return equalOrApprox + (str(d) + "*" if _DecimalFns.isNotOne(d) else "")  + "10^" + str(exp)
+			(sign, digits, exp) = Context(prec=1, rounding=ROUND_HALF_UP).create_decimal(d).as_tuple()
+			d = Decimal(str(digits[0]))
+			equalOrApprox = "=" if _BirthdayProblemNumberFormatter.isExpReprEqualToStandardRepr(d, exp, inputD) else "≈"
+			return equalOrApprox + (str(d) + "*" if _DecimalFns.isNotOne(d) else "")  + "10^" + str(exp)
 		else:
 			return  "" # no base 10 representation needed
 
@@ -620,7 +645,7 @@ class _BirthdayProblemTextFormatter:
 			_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX: "Stirling",
 			_BirthdayProblemSolver.CalcPrecision.TRIVIAL: "Trivial"
 		}
-		return texts.get(method, lambda isInv: "Unknown")
+		return texts.get(method, "Unknown")
 
 	@staticmethod
 	def methodToDescription(method, isInv):
@@ -716,7 +741,7 @@ class _BirthdayProblemInputHandler:
 	@staticmethod
 	def checkType(var, type, varName, typeName):
 		if(not isinstance(var, type)):
-			raise Exception(_BirthdayProblemInputHandler.illegalInputString(varName) + ": must be of type '" + typeName + "'")
+			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varName) + ": must be of type '" + typeName + "'")
 
 	@staticmethod
 	def checkDecimal(var, varName):
@@ -730,39 +755,39 @@ class _BirthdayProblemInputHandler:
 	@staticmethod
 	def sanitize(dOrDLog, nOrNLog, p, isBinary, isCombinations, isStirling, isTaylor, isExact, isAll, varMap = {}):
 		if dOrDLog is None:
-			raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide a size for the set to sample from.")
+			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide a size for the set to sample from.")
 		_BirthdayProblemInputHandler.checkDecimal(dOrDLog, varMap.get("dOrDLog", "dOrDLog"))
 
 		for [var, varName] in [[isBinary, varMap.get("isBinary", "isBinary")], [isCombinations, varMap.get("isCombinations", "isCombinations")], [isStirling, varMap.get("isStirling", "isStirling")], [isTaylor, varMap.get("isTaylor", "isTaylor")], [isExact, varMap.get("isExact", "isExact")], [isAll, varMap.get("isAll", "isAll")]]:
 			_BirthdayProblemInputHandler.checkBoolean(var, varName)
 
 		if not _DecimalFns.isInteger(dOrDLog):
-			raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide an integer")
+			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide an integer")
 		elif _DecimalFns.isLessThanZero(dOrDLog):
-			raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide a non-negative integer")
+			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide a non-negative integer")
 		elif(_DecimalFns.isZero(dOrDLog) and not isBinary and not isCombinations):
-			raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide a value for '" + varMap.get("dOrDLog", "dOrDLog") + "' that results in a non-empty set of unique items from which samples are taken.")
+			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("dOrDLog", "dOrDLog")) + ": please provide a value for '" + varMap.get("dOrDLog", "dOrDLog") + "' that results in a non-empty set of unique items from which samples are taken.")
 
 		if (p is None and nOrNLog is None) or (p is not None and nOrNLog is not None):
-			raise Exception(_BirthdayProblemInputHandler.illegalInputString() + ": please provide a non-None value for either '" + varMap.get("nOrDLog", "nOrDLog") + "' or '" + varMap.get("p", "p") + "' (not both)")
+			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": please provide a non-None value for either '" + varMap.get("nOrDLog", "nOrDLog") + "' or '" + varMap.get("p", "p") + "' (not both)")
 		
 		if nOrNLog is not None:
 			_BirthdayProblemInputHandler.checkDecimal(nOrNLog, varMap.get("nOrDLog", "nOrDLog"))
 			if not isStirling and not isExact and not isTaylor and not isAll:
-				raise Exception(_BirthdayProblemInputHandler.illegalInputString() + ": must set at least one of '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "', '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") + "' when '" + varMap.get("nOrNLog", "nOrNLog") + "' is not None.")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": must set at least one of '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "', '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") + "' when '" + varMap.get("nOrNLog", "nOrNLog") + "' is not None.")
 			elif (isStirling or isExact or isTaylor) and isAll:
-				raise Exception(_BirthdayProblemInputHandler.illegalInputString() + ": flag '" + varMap.get("isAll", "isAll") + "' was true and implicitly includes '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' set to True which should then not be set to True.")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": flag '" + varMap.get("isAll", "isAll") + "' was true and implicitly includes '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' set to True which should then not be set to True.")
 			elif not _DecimalFns.isInteger(nOrNLog):
-				raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("nOrDLog", "nOrDLog")) + ": please provide an integer")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("nOrDLog", "nOrDLog")) + ": please provide an integer")
 			elif _DecimalFns.isLessThanZero(nOrNLog):
-				raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("nOrDLog", "nOrDLog")) + ": please provide a non-negative integer")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("nOrDLog", "nOrDLog")) + ": please provide a non-negative integer")
 
 		else:
 			_BirthdayProblemInputHandler.checkDecimal(p, varMap.get("p", "p"))
 			if isStirling or isExact or isTaylor:
-				raise Exception(_BirthdayProblemInputHandler.illegalInputString() + ": '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") +"' should only be non-False when '" + varMap.get("nOrDLog", "nOrDLog") + "' is not None (with '" + varMap.get("p", "p") + "' != None), Taylor approximation is always used).")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") +"' should only be non-False when '" + varMap.get("nOrDLog", "nOrDLog") + "' is not None (with '" + varMap.get("p", "p") + "' != None), Taylor approximation is always used).")
 			elif _DecimalFns.isGreaterThanOne(p) or _DecimalFns.isLessThanZero(p):
-				raise Exception(_BirthdayProblemInputHandler.illegalInputString(varMap.get("p", "p")) + ": please provide a non-negative decimal number in the range [0.0, 1.0]")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("p", "p")) + ": please provide a non-negative decimal number in the range [0.0, 1.0]")
 
 	# further processes correct input and extract all arguments that is needed for calculations to start (based on isBinary and isCombinations)
 	@staticmethod
@@ -905,8 +930,9 @@ class _BirthdayProblemCLISolver:
 			d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, isJson, prec = _BirthdayProblemCLISolver.__setup(args, varMap)
 
 			if(dLog is None or dLog.as_tuple()[2] > 0): # implies the precision was not enough to store the size of this number, a scale had to be used
-				raise Exception("couldn't setup calculations because input numbers were too large: the log of the resulting input set size D must not exceed 1000 digits.")
-
+				raise SolverException(SolverErrorCode.DLOG_NOT_CALCULATED, message = "couldn't setup calculations because input numbers were too large: the log of the resulting input set size D must not exceed 1000 digits.")
+			if(not isBinary and (d is None or d.as_tuple()[2] > 0)): # implies the precision was not enough to store the size of this number, a scale had to be used
+				raise SolverException(SolverErrorCode.D_NOT_CALCULATED, message = "couldn't setup calculations because input numbers were too large: the input set size D must not exceed 1000 digits.")
 			if(isJson):
 				return _BirthdayProblemCLISolver.solveJson(d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, prec, isMainProgram)
 			else:
@@ -914,9 +940,9 @@ class _BirthdayProblemCLISolver:
 
 		except BaseException as e:
 			if(isMainProgram):
-				print()
-				print("Failed due to error: ", e)
-				sys.exit("program terminated abnormally with exit code 1")
+				print("Failed due to error:", e, file=sys.stderr)
+				traceback.print_exception(*sys.exc_info())
+				sys.exit(int(e.code) if isinstance(e, SolverException) else 1)
 			else:
 				raise e
 
@@ -929,14 +955,15 @@ class _BirthdayProblemCLISolver:
 		if p is not None:
 			outputter(_BirthdayProblemTextFormatter.headerTextBirthdayProblemInv(dLog if isBinary else d, p, pPercent, isBinary, prec))
 			try:
-				if(dLog is None):
-					raise Exception("dLog was not successfully calculated and is needed for Taylor method.")
 				(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
 			except BaseException as e:
+				methodText = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX))
 				if isinstance(e, KeyboardInterrupt):
-					outputter(_BirthdayProblemTextFormatter.indented("N/A (Interrupted by user)"))
+					outputter(_BirthdayProblemTextFormatter.indented("N/A (Interrupted by user" + methodText + ")"))
+				elif isinstance(e, SolverException):
+					outputter(_BirthdayProblemTextFormatter.indented("N/A (Calculation failed: " + str(e) + methodText + ")"))
 				else:
-					outputter(_BirthdayProblemTextFormatter.indented("N/A (Calculation failed)"))
+					outputter(_BirthdayProblemTextFormatter.indented("N/A (Calculation failed: " + str(e) + methodText + ")"))
 			else:
 				outputter(_BirthdayProblemTextFormatter.indented(_BirthdayProblemTextFormatter.resultTextBirthdayProblemInv(n, isBinary, methodUsed, prec)))
 		else:
@@ -946,16 +973,17 @@ class _BirthdayProblemCLISolver:
 			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX, isStirling), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
 				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
 					try:
-						if(nLog is None or dLog is None):
-							raise Exception("dLog or nLog was not successfully calculated and are both needed for " + _BirthdayProblemTextFormatter.methodToText(method) + " method.")
 						(p, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblem(d, dLog, n, nLog, method, isBinary)
 						lastMethodUsed = methodUsed
 						pPercent = _DecimalFns.toPercent(p)
 					except BaseException as e:
+						methodText = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(method))
 						if isinstance(e, KeyboardInterrupt):
-							results += [("N/A", "",  " (Interrupted by user" + _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(method)) + ")")]	
+							results += [("N/A", "", " (Interrupted by user" + methodText + ")")]
+						elif isinstance(e, SolverException):
+							results += [("N/A", "", " (Calculation failed: " + str(e) + methodText + ")")]
 						else:
-							results += [("N/A", "",  " (Calculation failed with this method" + _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(method)) + ")")]
+							results += [("N/A", "", " (Calculation failed: " + str(e) + methodText + ")")]
 					else:
 						results += [_BirthdayProblemTextFormatter.resultTextBirthdayProblem(p, pPercent, methodUsed, prec)]
 			# map every value for results and log10 results to the length of the string (=> an array of tuples), then spred it with * so that we add tuples as vararg input to zip which will then create two
@@ -976,14 +1004,21 @@ class _BirthdayProblemCLISolver:
 			res['d'] = dText
 			res['p'] = pText
 			try:
-				if(dLog is None):
-					raise Exception("dLog was not successfully calculated and is needed for Taylor method.")
 				(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
 			except BaseException as e:
-				res['results'][_BirthdayProblemTextFormatter.methodToText(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX).lower()] = 'N/A'
+				methodKey = _BirthdayProblemTextFormatter.methodToText(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX).lower()
+				res['results'][methodKey] = {}
+				if isinstance(e, KeyboardInterrupt):
+					res['results'][methodKey]['error'] = 'interrupted'
+				elif isinstance(e, SolverException):
+					res['results'][methodKey]['error'] = str(e)
+				else:
+					res['results'][methodKey]['error'] = str(e)
 			else:
+				methodKey = _BirthdayProblemTextFormatter.methodToText(methodUsed).lower()
+				res['results'][methodKey] = {}
 				n = _BirthdayProblemTextFormatter.resultTextBirthdayProblemInvNumbers(n, isBinary, prec)
-				res['results'][_BirthdayProblemTextFormatter.methodToText(methodUsed).lower()] = n
+				res['results'][methodKey]['result'] = n
 		else:
 			dText, nText  = _BirthdayProblemTextFormatter.headerTextBirthdayProblemNumbers(dLog if isBinary else d, nLog if isBinary else n, isBinary, prec)
 			res['d'] = dText
@@ -992,16 +1027,23 @@ class _BirthdayProblemCLISolver:
 			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX, isStirling), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
 				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
 					try:
-						if(nLog is None or dLog is None):
-							raise Exception("dLog or nLog was not successfully calculated and are both needed for " + _BirthdayProblemTextFormatter.methodToText(method) + " method.")
 						(p, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblem(d, dLog, n, nLog, method, isBinary)
 						lastMethodUsed = methodUsed
 						pPercent = _DecimalFns.toPercent(p)
 					except BaseException as e:
-						res['results'][_BirthdayProblemTextFormatter.methodToText(method).lower()] = 'N/A'
+						methodKey = _BirthdayProblemTextFormatter.methodToText(method).lower()
+						res['results'][methodKey] = {}
+						if isinstance(e, KeyboardInterrupt):
+							res['results'][methodKey]['error'] = 'interrupted'
+						elif isinstance(e, SolverException):
+							res['results'][methodKey]['error'] = str(e)
+						else:
+							res['results'][methodKey]['error'] = str(e)
 					else:
+						methodKey = _BirthdayProblemTextFormatter.methodToText(methodUsed).lower()
+						res['results'][methodKey] = {}
 						p = "".join(_BirthdayProblemTextFormatter.resultTextBirthdayProblemNumbers(p, pPercent, prec))
-						res['results'][_BirthdayProblemTextFormatter.methodToText(methodUsed).lower()] = p
+						res['results'][methodKey]['result'] = p
 		res = json.dumps(res)
 		if(isMainProgram):
 			print(res)

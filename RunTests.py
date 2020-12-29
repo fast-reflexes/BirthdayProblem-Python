@@ -1,5 +1,6 @@
 import OutputTest
 import DataTest
+from BirthdayProblem import SolverException
 import subprocess
 import json
 
@@ -15,13 +16,13 @@ def runTest(testData, resFn, assemblerFn, dividerFn):
 	for i, (args, shouldTestSucceed, ans) in enumerate(testData, start = 1):
 		print("Test " + str(i) + ": input '" + args + "'")
 		error = False
-		ansSingle = assemblerFn(ans)
+		ansSingle = assemblerFn(ans) if shouldTestSucceed else ans
 		try:
 			resSingle = assemblerFn(resFn(args))
 		except BaseException as e:
 			error = True
-			resSingle = e
-		if (shouldTestSucceed and (error or ansSingle != resSingle)) or (not shouldTestSucceed and not error) :
+			resSingle = str(e)
+		if (shouldTestSucceed and (error or ansSingle != resSingle)) or (not shouldTestSucceed and (not error or ansSingle != resSingle)):
 			print("-> failed:")
 			if(shouldTestSucceed):
 				if(error):
@@ -34,9 +35,13 @@ def runTest(testData, resFn, assemblerFn, dividerFn):
 					for row in dividerFn(ansSingle):
 						print("        " + str(row))
 			else:
-				print("    Due to error: test should have failed but was successful with output ...")
-				for row in dividerFn(resSingle):
-					print("        " + str(row))
+				if(error):
+					print("    Expected exception message: '" + resSingle + "'")
+					print("    to be equal to exception message: '" + ansSingle + "'")
+				else:
+					print("    Due to error: test should have failed but was successful with output ...")
+					for row in dividerFn(resSingle):
+						print("        " + str(row))
 			failed += 1
 		else:
 			print("-> succeeded")
