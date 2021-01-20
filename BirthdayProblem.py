@@ -650,12 +650,12 @@ class _BirthdayProblemTextFormatter:
 	@staticmethod
 	def methodToDescription(method, isInv):
 		texts = {
-			_BirthdayProblemSolver.CalcPrecision.EXACT: lambda isInv: "Exact method",
-			_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX: lambda isInv: "Taylor series approximation used in main calculation" + ("" if isInv else " (removes need for factorial calculation)"),
-			_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX: lambda isInv: "Stirling's approximation used in factorial calculation",
-			_BirthdayProblemSolver.CalcPrecision.TRIVIAL: lambda isInv: "Trivial solution"
+			_BirthdayProblemSolver.CalcPrecision.EXACT: "Exact method",
+			_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX: "Taylor series approximation used in main calculation" + ("" if isInv else " (removes need for factorial calculation)"),
+			_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX: "Stirling's approximation used in factorial calculation",
+			_BirthdayProblemSolver.CalcPrecision.TRIVIAL: "Trivial solution"
 		}
-		return texts.get(method, lambda isInv: "Unknown method")(isInv)
+		return texts.get(method, "Unknown method")
 
 	@staticmethod
 	def headerTextBirthdayProblemInvNumbers(dLogOrNot, p, pPercent, isLog2, prec = None):
