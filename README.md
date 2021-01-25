@@ -143,7 +143,9 @@ Elias Lousseief (2020)
      *   Improved checks on input sizes before starting calculations
      *   Returning error codes when terminating program with an error
      *   Returning more specific error messages when a method fails
-  *  Simplified conversion to log10 form
-  *  Corrected minor bug in `_BirthdayProblemTextFormatter.methodToText`
+  *  Simplified conversion to log10 form in `_BirthdayProblemNumberFormatter.toLog10ReprOrNone`.
+  *  Corrected precision bug in `_BirthdayProblemSolverChecked.birthdayProblemInv`.
+  *  Corrected minor bug in `_BirthdayProblemTextFormatter.methodToText`.
+  *  Simplified `_BirthdayProblemTextFormatter.methodToText` and `_BirthdayProblemTextFormatter.methodToDescription`.
     
 

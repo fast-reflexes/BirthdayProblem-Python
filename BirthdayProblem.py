@@ -567,14 +567,12 @@ class _BirthdayProblemNumberFormatter:
 
 	# returns log10 representation of a number or the empty string if the input is not outside the defined log10 representation thresholds.
 	@staticmethod
-	def toLog10ReprOrNone(d):
-		inputD = d
-		exp = 0 # powers of 10 filtered out of d
-		if(_DecimalFns.isGreaterThan(_BirthdayProblemNumberFormatter.LOG10_LOWER_THRESHOLD, d) or _DecimalFns.isLessThan(_BirthdayProblemNumberFormatter.LOG10_UPPER_THRESHOLD, d)) and _DecimalFns.isGreaterThanZero(d):
+	def toLog10ReprOrNone(argD):
+		if(_DecimalFns.isGreaterThan(_BirthdayProblemNumberFormatter.LOG10_LOWER_THRESHOLD, argD) or _DecimalFns.isLessThan(_BirthdayProblemNumberFormatter.LOG10_UPPER_THRESHOLD, argD)) and _DecimalFns.isGreaterThanZero(argD):
 			# d is smaller than the lower log 10 repr threshold or larger than the upper log 10 repr threshold, and not 0, so a complementary log 10 representation is called for
-			(sign, digits, exp) = Context(prec=1, rounding=ROUND_HALF_UP).create_decimal(d).as_tuple()
+			(sign, digits, exp) = Context(prec=1, rounding=ROUND_HALF_UP).create_decimal(argD).as_tuple()
 			d = Decimal(str(digits[0]))
-			equalOrApprox = "=" if _BirthdayProblemNumberFormatter.isExpReprEqualToStandardRepr(d, exp, inputD) else "≈"
+			equalOrApprox = "=" if _BirthdayProblemNumberFormatter.isExpReprEqualToStandardRepr(d, exp, argD) else "≈"
 			return equalOrApprox + (str(d) + "*" if _DecimalFns.isNotOne(d) else "")  + "10^" + str(exp)
 		else:
 			return  "" # no base 10 representation needed
@@ -634,6 +632,7 @@ class _BirthdayProblemTextFormatter:
 			_BirthdayProblemSolver.CalcPrecision.EXACT: "Exact method",
 			_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX: "Taylor approximation",
 			_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX: "Exact method with Stirling's approximation",
+			_BirthdayProblemSolver.CalcPrecision.TRIVIAL: "Trivial method"
 		}
 		return texts.get(method, "Unknown method")
 
@@ -958,12 +957,13 @@ class _BirthdayProblemCLISolver:
 				(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
 			except BaseException as e:
 				methodText = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX))
+				errorText = "N/A (Calculation failed: " + str(e).lower() + methodText + ")"
 				if isinstance(e, KeyboardInterrupt):
 					outputter(_BirthdayProblemTextFormatter.indented("N/A (Interrupted by user" + methodText + ")"))
 				elif isinstance(e, SolverException):
-					outputter(_BirthdayProblemTextFormatter.indented("N/A (Calculation failed: " + str(e) + methodText + ")"))
+					outputter(_BirthdayProblemTextFormatter.indented(errorText))
 				else:
-					outputter(_BirthdayProblemTextFormatter.indented("N/A (Calculation failed: " + str(e) + methodText + ")"))
+					outputter(_BirthdayProblemTextFormatter.indented(errorText))
 			else:
 				outputter(_BirthdayProblemTextFormatter.indented(_BirthdayProblemTextFormatter.resultTextBirthdayProblemInv(n, isBinary, methodUsed, prec)))
 		else:
@@ -978,12 +978,13 @@ class _BirthdayProblemCLISolver:
 						pPercent = _DecimalFns.toPercent(p)
 					except BaseException as e:
 						methodText = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(method))
+						errorText = " (Calculation failed: " + str(e).lower() + methodText + ")"
 						if isinstance(e, KeyboardInterrupt):
 							results += [("N/A", "", " (Interrupted by user" + methodText + ")")]
 						elif isinstance(e, SolverException):
-							results += [("N/A", "", " (Calculation failed: " + str(e) + methodText + ")")]
+							results += [("N/A", "", errorText)]
 						else:
-							results += [("N/A", "", " (Calculation failed: " + str(e) + methodText + ")")]
+							results += [("N/A", "", errorText)]
 					else:
 						results += [_BirthdayProblemTextFormatter.resultTextBirthdayProblem(p, pPercent, methodUsed, prec)]
 			# map every value for results and log10 results to the length of the string (=> an array of tuples), then spred it with * so that we add tuples as vararg input to zip which will then create two
@@ -1007,18 +1008,17 @@ class _BirthdayProblemCLISolver:
 				(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
 			except BaseException as e:
 				methodKey = _BirthdayProblemTextFormatter.methodToText(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX).lower()
-				res['results'][methodKey] = {}
+				errorMessage = str(e).lower()
 				if isinstance(e, KeyboardInterrupt):
-					res['results'][methodKey]['error'] = 'interrupted'
+					res['results'][methodKey] = { 'error': 'interrupted' }
 				elif isinstance(e, SolverException):
-					res['results'][methodKey]['error'] = str(e)
+					res['results'][methodKey] = { 'error': errorMessage }
 				else:
-					res['results'][methodKey]['error'] = str(e)
+					res['results'][methodKey] = { 'error': errorMessage }
 			else:
 				methodKey = _BirthdayProblemTextFormatter.methodToText(methodUsed).lower()
-				res['results'][methodKey] = {}
 				n = _BirthdayProblemTextFormatter.resultTextBirthdayProblemInvNumbers(n, isBinary, prec)
-				res['results'][methodKey]['result'] = n
+				res['results'][methodKey] = { 'result' : n }
 		else:
 			dText, nText  = _BirthdayProblemTextFormatter.headerTextBirthdayProblemNumbers(dLog if isBinary else d, nLog if isBinary else n, isBinary, prec)
 			res['d'] = dText
@@ -1032,18 +1032,17 @@ class _BirthdayProblemCLISolver:
 						pPercent = _DecimalFns.toPercent(p)
 					except BaseException as e:
 						methodKey = _BirthdayProblemTextFormatter.methodToText(method).lower()
-						res['results'][methodKey] = {}
+						errorMessage = str(e).lower()
 						if isinstance(e, KeyboardInterrupt):
-							res['results'][methodKey]['error'] = 'interrupted'
+							res['results'][methodKey] = { 'error': 'interrupted' }
 						elif isinstance(e, SolverException):
-							res['results'][methodKey]['error'] = str(e)
+							res['results'][methodKey] = { 'error': errorMessage }
 						else:
-							res['results'][methodKey]['error'] = str(e)
+							res['results'][methodKey] = { 'error': errorMessage }
 					else:
 						methodKey = _BirthdayProblemTextFormatter.methodToText(methodUsed).lower()
-						res['results'][methodKey] = {}
 						p = "".join(_BirthdayProblemTextFormatter.resultTextBirthdayProblemNumbers(p, pPercent, prec))
-						res['results'][methodKey]['result'] = p
+						res['results'][methodKey] = { 'result': p }
 		res = json.dumps(res)
 		if(isMainProgram):
 			print(res)
