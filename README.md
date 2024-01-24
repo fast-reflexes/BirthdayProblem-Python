@@ -17,8 +17,8 @@ In mathematical terms, this can be expressed as
 since the probability of picking all of `N` unique is equal to the number of ways to pick `N` unique samples divided by number of ways to pick any `N` samples. This, of course, given
 the assumption that all `D` items are equally probable.
  
-The project supports calculating both the probability `P` from `N` and `D` (using exact method, exact method with Stirling's approximation in the calculation of faculties and Taylor approximation) and
-`N` from `D` and `P` (Taylor approximation only). Both approximations get asymptotically close to the exact result as `D` grows towards infinity. The exact method should not be used for larger
+The project supports calculating both the probability `P` from `N` and `D` (using exact method, exact method with Stirling's approximation in the calculation of faculties or Taylor approximation) and
+`N` from `D` and `P` (using exact method or Taylor approximation). Both approximations get asymptotically close to the exact result as `D` grows towards infinity. The exact method should not be used for larger
 numbers. For extremely small probabilities `P`, the exact method with Stirling's approximation used for faculties may become unstable as it involves many more different operations than
 the Taylor approximation which, each, results in small round-offs. Another source of error in this case arises from the use of Stirling's formula for two calculations of faculties (`D!`
 and `(D - N)!`). Since one of these (`(D - N)!`) diverges slightly more from the exact result than the other (`D!`), the difference between these (used for calculations in log space) might
@@ -27,19 +27,19 @@ whether they match well.
 
 ### Parameter legend
 
-Name | Type | Effect | CLI flag
---- | --- | --- | ---
-`D` | integer | The size of the set to sample from | -
-`N` | integer | The number of samples sampled from `D` | `-n`
-`P` | floating point number | The probability of a non-unique sample in `N` | `-p`
-`binary` | boolean | Whether to interpret `D` and `N` as base-2 logarithms | `-b`
-`combinations` | boolean | Whether to interpret `D` as the size of a set from which we must yield the actual size, `D!`, of the set to sample from | `-c`  
-`taylor` | boolean | Whether to calculate `P` with Taylor approximation | `-t`
-`stirling` | boolean | Whether to calculate `P` with exact method using Stirling's approximation in calculation of faculties | `-s`
-`exact` | boolean | Whether to calculate `P` with exact method | `-e`
-`all` | boolean | Whether to calculate `P` with all methods (implies `-s -t -e`) | `-a`
-`json` | boolean | Whether to output answer as a Json object or as text | `-j`
-`prec` | integer | Decimals in the solution where applicable (in [0, 10] with default 10) | `--prec`
+| Name           | Type | Effect                                                                                                                  | CLI flag |
+|----------------| --- |-------------------------------------------------------------------------------------------------------------------------| --- |
+| `D`            | integer | The size of the set to sample from                                                                                      | - |
+| `N`            | integer | The number of samples sampled from `D`                                                                                  | `-n` |
+| `P`            | floating point number | The probability of a non-unique sample in `N`                                                             | `-p` |
+| `binary`       | boolean | Whether to interpret `D` and `N` as base-2 logarithms                                                                   | `-b` |
+| `combinations` | boolean | Whether to interpret `D` as the size of a set from which we must yield the actual size, `D!`, of the set to sample from | `-c` |  
+| `taylor`       | boolean | Whether to calculate `P` or `N` with Taylor approximation                                                               | `-t` |
+| `stirling`     | boolean | Whether to calculate `P` with exact method using Stirling's approximation in calculation of faculties                   | `-s` |
+| `exact`        | boolean | Whether to calculate `P` or `N` with exact method                                                                       | `-e` |
+| `all`          | boolean | Whether to calculate `P` or `N` with all methods (implies `-s -t -e` for `P` and `-t -e` for `N`)                       | `-a` |
+| `json`         | boolean | Whether to output answer as a Json object or as text                                                                    | `-j` |
+| `prec`         | integer | Decimals in the solution where applicable (in [0, 10] with default 10)                                                  | `--prec` |
 
 ## Versions
 
@@ -69,7 +69,7 @@ Calculate the probability `P` of at least one non-unique birthday among `N`= 23 
 
 Calculate, approximatively, the number of times `N` a deck of cards has to be shuffled to have a `P` = 50% probability of seeing a repeated shuffle:
 
-    > python BirthdayProblem.py 52 -p 0.5 -c
+    > python BirthdayProblem.py 52 -p 0.5 -c -t
 
 #### Example 3:
 
@@ -96,13 +96,13 @@ The following shows example usage of this project in another application:
     CalcPrecision = Solver.CalcPrecision
     
     [p, pMethod] = Solver.solveForP(Decimal('366'), Decimal('23'), False, False, CalcPrecision.EXACT)
-    [n, nMethod] = Solver.solveForN(Decimal('52'), Decimal('0.5'), False, True)
+    [n, nMethod] = Solver.solveForN(Decimal('52'), Decimal('0.5'), False, True, CalcPrecision.TAYLOR)
 
     
 The functions to call have signatures
 
     def solveForP(dOrDLog, nOrNLog, isBinary, isCombinations, method)
-    def solveForN(dOrDLog, p, isBinary, isCombinations)
+    def solveForN(dOrDLog, p, isBinary, isCombinations, method)
     
 and may throw exceptions.
 
@@ -147,5 +147,13 @@ Elias Lousseief (2020)
   *  Corrected precision bug in `_BirthdayProblemSolverChecked.birthdayProblemInv`.
   *  Corrected minor bug in `_BirthdayProblemTextFormatter.methodToText`.
   *  Simplified `_BirthdayProblemTextFormatter.methodToText` and `_BirthdayProblemTextFormatter.methodToDescription`.
-    
+
+* *v. 1.4*
+  * Added exact method for calculating `N` given `D` and `P` using a numerical approach, this means that from now on
+    multiple solution strategies can be used for this calculation as well (earlier this calculation always used Taylor
+    approximation).
+  * Fixed bug in method `facultyLog` for when input is 0. Since 0! = 1 and the return value is in log space, the
+    correct answer is 0 and not 1.
+  * Added trivial use case for calculating `N` using `D` and `P` when `D` is 1 and `P` is neither 0 nor 1 (in this case
+    the answer is always 2).
 

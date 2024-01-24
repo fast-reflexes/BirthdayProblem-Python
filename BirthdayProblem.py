@@ -93,7 +93,7 @@ class _DecimalFns:
 	@staticmethod
 	def isGreaterThan(a, b):
 		return _DecimalContext.ctx.compare(a, b) == _DecimalFns.ONE
-	
+
 	@staticmethod
 	def areEqual(a, b):
 		return _DecimalContext.ctx.compare(a, b) == _DecimalFns.ZERO
@@ -175,7 +175,7 @@ class _DecimalFns:
 	@staticmethod
 	def facultyLog(n, nLog, isLog2):
 		if _DecimalFns.isZero(n): # n == 0
-			return _DecimalFns.ONE
+			return _DecimalFns.ZERO
 		else:
 			if isLog2:
 				return _DecimalFns.__facultyStirlingLog2(n, nLog)
@@ -193,7 +193,7 @@ class _DecimalFns:
 					=	ln((n/e)^n) + ln(sqrt(2 * pi * n))
 					=	n(ln(n/e)) + ln((2 * pi * n)^(1/2))
 				 	=	n(ln(n) - ln(e)) + 0.5(ln(2) + ln(pi) + ln(n))
-					= 	n(nLogE - 1) + 0.5(LOG_E_2 + LOG_E_PI + nLogE
+					= 	n(nLogE - 1) + 0.5(LOG_E_2 + LOG_E_PI + nLogE)
 	'''
 	# in e-log space
 	@staticmethod
@@ -283,6 +283,8 @@ class _BirthdayProblemSolverChecked:
 
 	@staticmethod
 	def birthdayProblem(maybeD, dLog, maybeN, nLog, calcPrecision, dIsLog2):
+		# NOTE that dLog and nLog are 2 OR e base logarithms depending on input processing reflected in dIsLog2
+
 		if (dIsLog2 and _DecimalFns.isLessThanOne(nLog)) or (not dIsLog2 and _DecimalFns.isLessThan(nLog, _DecimalFns.LOG_E_2)):
 			# trivially, if you sample less than 2 times, the chance of a non-unique sample is 0%
 			return (_DecimalFns.ZERO, _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
@@ -326,7 +328,7 @@ class _BirthdayProblemSolverChecked:
 
 
 	@staticmethod
-	def birthdayProblemInv(maybeD, dLog, p, dIsLog2):
+	def birthdayProblemInv(maybeD, dLog, p, calcPrecision, dIsLog2):
 		if _DecimalFns.isZero(p):
 			# trivially, to have a 0% chance of picking a duplicate, just pick one sample (or 0)
 			return (_DecimalFns.ZERO if dIsLog2 else _DecimalFns.ONE, _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
@@ -338,19 +340,39 @@ class _BirthdayProblemSolverChecked:
 			else:
 				# if d is too large to calculate adding 1 to it is negligible
 				return (dLog if maybeD is None else _DecimalContext.ctx.add(maybeD, _DecimalFns.ONE), _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
+		elif _DecimalFns.isZero(dLog):
+			# set size is 1 and p is neither 0 nor 1, for ANY p in between 0 and 1, 2 samples are required to get a non-unique sample
+			return (_DecimalFns.ONE if dIsLog2 else _DecimalFns.TWO, _BirthdayProblemSolver.CalcPrecision.TRIVIAL)
 		else:
+			if calcPrecision in [_BirthdayProblemSolver.CalcPrecision.EXACT] and (maybeD is None):
+				# d is needed for this method
+				raise SolverException(SolverErrorCode.D_NEEDED_FOR_METHOD, calcPrecision)
+
 			# carry out the calculations
 			_DecimalContext.adjustPrecision(maybeD.adjusted()) if maybeD is not None else _DecimalContext.adjustPrecision(dLog.adjusted())
-			if _DecimalContext.isTooPrecise():
-				_DecimalContext.adjustPrecision(dLog.adjusted())
+			if calcPrecision == _BirthdayProblemSolver.CalcPrecision.EXACT:
 				if _DecimalContext.isTooPrecise():
 					# with a too high precision, even the simplest calculation takes too long
-					raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
-			if dIsLog2:
-				return (_BirthdayProblemSolverChecked.__birthdayProblemInvTaylorApproxLog2(dLog, p), _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
+					raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, calcPrecision)
+				if dIsLog2:
+					return (_DecimalContext.ctx.divide(
+						_DecimalContext.ctx.ln(
+							_BirthdayProblemSolverChecked.__birthdayProblemInvExact(maybeD, p)
+						),
+						_DecimalFns.LOG_E_2
+					), _BirthdayProblemSolver.CalcPrecision.EXACT)
+				else:
+					return (_BirthdayProblemSolverChecked.__birthdayProblemInvExact(maybeD, p), _BirthdayProblemSolver.CalcPrecision.EXACT)
 			else:
-				return (_DecimalContext.ctx.exp(_BirthdayProblemSolverChecked.__birthdayProblemInvTaylorApproxLogE(dLog, p)), _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
-
+				if _DecimalContext.isTooPrecise():
+					_DecimalContext.adjustPrecision(dLog.adjusted())
+					if _DecimalContext.isTooPrecise():
+						# with a too high precision, even the simplest calculation takes too long
+						raise SolverException(SolverErrorCode.TOO_HIGH_PRECISION, _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
+				if dIsLog2:
+					return (_BirthdayProblemSolverChecked.__birthdayProblemInvTaylorApproxLog2(dLog, p), _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
+				else:
+					return (_DecimalContext.ctx.exp(_BirthdayProblemSolverChecked.__birthdayProblemInvTaylorApproxLogE(dLog, p)), _BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX)
 
 	########################################################################################################################################################################################################
 	########################################################################################################################################################################################################
@@ -358,10 +380,10 @@ class _BirthdayProblemSolverChecked:
 	#	Internal drivers                 																																								   #
 	#																																																	   #
 	########################################################################################################################################################################################################
-	########################################################################################################################################################################################################						
+	########################################################################################################################################################################################################
 
 	'''
-		A frequent formula in the context of the birthday problem (or paradox) calculates that chance of no two items being equal (all items unique) when drawing d (picked) items from a population of n 
+		A frequent formula in the context of the birthday problem (or paradox) calculates the chance of no two items being equal (all items unique) when drawing d (picked) items from a population of n 
 		(possibilities) items. Since we can choose unique items from n in (n)_d ways, and you can pick d items (any) from n in n^d, the formula for this is:
 
 			^P(n, d) 	= (n)_d / n^d
@@ -369,8 +391,8 @@ class _BirthdayProblemSolverChecked:
 		In log space, this is:
 
 			lg(^P(n, d))= lg((n)_d / n^d)
-						= ln((n)_d) - lg(n^d)
-						= ln((n)_d) - d * lg(n) 
+						= lg((n)_d) - lg(n^d)
+						= lg((n)_d) - d * lg(n) 
 
 		This result calculates the chance of all items unique, but most often, we are interested in the chance of there being at least one (trivially two) non-unique item(s) among dm P(n, d), which is 
 		why we take the complement of ^P(n, d) as the final result of these functions.
@@ -415,6 +437,9 @@ class _BirthdayProblemSolverChecked:
 		The formula is based on the observation that ln(n!) = ln(n) + ln(n - 1) + ... + ln(1): 
 
 			P(n, d) 			~ 1 - e^(-(n^2/2d))
+			
+		NOTE: this is really an approximation of the approximation; substitute n^2 for n * (n - 1) is possible
+		for a more accurate formula.
 
 		This implies that
 
@@ -442,6 +467,11 @@ class _BirthdayProblemSolverChecked:
 
 			lg(-ln(^P(n, d)))	~ 2 * lg(n) - (lg(2) + lg(d))
 								= 2 * nLog2 - (1 + dLog2)
+								
+		Connecting back to the previous NOTE, 2 * lg(n) comes from lg(n^2), with the more accurate formula we would
+		instead have lg(n * (n - 1)) which equals lg(n) + lg(n - 1). This requires us to have n available. Note that
+		on a simplistic note, one might be aware of this improvement but still omit it since we then stay more true to
+		the approximation in use here. Therefore it has been omitted below.
 	'''
 
 	# calculates result in base-2 logarithms (second level of logs)
@@ -461,6 +491,11 @@ class _BirthdayProblemSolverChecked:
 
 			ln(-ln(^P(n, d)))	~ 2 * ln(n) - (ln(2) + ln(d))
 								= 2 * nLogE - (LOG_E_2 + dLogE)
+								
+		Again connecting back to the previous NOTE, 2 * ln(n) comes from ln(n^2), with the more accurate formula we 
+		would instead have ln(n * (n - 1)) which equals ln(n) + ln(n - 1). This requires us to have n available. Note 
+		that on a simplistic note, one might be aware of this improvement but still omit it since we then stay more 
+		true to the approximation in use here. Therefore it has been omitted below.
 	'''
 	# calculates result in natural logarithmic space
 	@staticmethod
@@ -473,6 +508,56 @@ class _BirthdayProblemSolverChecked:
 		negProb = _DecimalContext.ctx.exp(negProbLogE)
 		prob = _DecimalContext.ctx.subtract(_DecimalFns.ONE, negProb) # complement
 		return prob
+
+	'''
+		The formula for the forward birthday problem is
+		
+		    P(n, d) 			= 1 - (1 - 1/d) * (1 - 2/d) * ... * (1 - (n - 1)/d)
+		    P(n, d) 			= 1 - ((d - 1)/d) * ((d - 2)/d) * ... * ((d - (n - 1))/d)
+		
+		Remember, this P(n, d) is the probability of a collision.
+		
+		which leads to
+			^P(n, d)			= ((d - 1)/d) * ((d - 2)/d) * ... * ((d - (n - 1))/d)
+			
+		which is the probability of all unique, which in log space is
+		
+			ln(^P(n, d))		= ln(((d - 1)/d) * ((d - 2)/d) * ... * ((d - (n - 1))/d))
+								= ln((d - 1)/d) + ln((d - 2)/d) + ... + ln((d - (n - 1))/d)
+								= ln(d - 1) - ln(d) + ln(d - 2) - ln(d) + ... + ln(d - (n - 1)) - ln(d)
+			
+		We want to find n such that P(n, d) >= Pin (input p), e.g. the number of samples needed for the probability of a
+		collision to be equal to or higher than Pin. This means that we need to find n such that P^(n, d) < 1 - Pin.
+		The first such value for n entails a P(n, d) >= Pin. In log space y = ln(x), probabilities from 0 to 1 map to 
+		y value from negative infinity to 0. We start with a single sample for which the probability of all samples
+		unique is 1. For every added sample, this probability decreases towards 1 - Pin until it is less than 1 - Pin
+		at which point we have found the relevant n.
+						
+		If we want to use a naive and exact method, we can calculate n numerically by adding one term to the sum until
+		ln(^P(n, d)) <= ln(1 - P)
+		
+		Note that for some reason, these calculations are faster in non-logarithmic space, perhaps due to the ln 
+		operation taking more time than is won off of using add / subtract in logarithmic space rather than multiply
+		/ divide in regular space.
+		
+		Also note that the first term in the above calculation is really 1 with a probability of all unique being 1.
+		Already when we calculate 1 * (d - 1 /d) we are assuming 2 samples. Thus the value of n is really reflecting
+		how many ADDITIONAL people to the initial one that is needed for the calculated probability. We thus make
+		up for this by adding 1 to the final result.
+	'''
+	@staticmethod
+	def __birthdayProblemInvExact(d, p):
+		pInv = _DecimalContext.ctx.subtract(_DecimalFns.ONE, p)
+		n = _DecimalFns.ONE
+		currentPInv = _DecimalContext.ctx.divide(_DecimalContext.ctx.subtract(d, n), d)
+		while currentPInv > pInv:
+			n = _DecimalContext.ctx.add(n, _DecimalFns.ONE)
+			currentPInv = _DecimalContext.ctx.multiply(
+				currentPInv,
+				_DecimalContext.ctx.divide(_DecimalContext.ctx.subtract(d, n), d)
+			)
+		final = _DecimalContext.ctx.add(n, _DecimalFns.ONE)
+		return final
 
 	'''
 		The formula for calculating the inverted birthday problem, namely how many times to sample from a set to reach a probability p of some non-unique samples, also uses the above Taylor approximation.
@@ -511,6 +596,12 @@ class _BirthdayProblemSolverChecked:
 
 			lg(n(P, d))			~ 0.5 * ( ln(-ln(1 - P)) + ln(2) + ln(d))
 								= 0.5 * ( ln(-ln(1 - p)) + LOG_E_2 + dLogE )
+								
+		NOTE that this calculation uses the approximation of the approximation using n^2 instead of the more accurate
+		n * (n - 1). Of course this is necessary here since we need to be able to do the root calculation to arrive at
+		an answer. The forward formula however may take (it currently doesn't) the less coarse approximation into 
+		account whereby the forward and backward calculations may differ when verifying n(P, d) in P(n, d) with the 
+		Taylor approximation.
 	'''
 	# with base e logarithms
 	@staticmethod
@@ -684,12 +775,12 @@ class _BirthdayProblemTextFormatter:
 			nLog2Text = ""
 			nLog10Text = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemNumberFormatter.toLog10ReprOrNone(n))
 			(prefix, nText) = _BirthdayProblemNumberFormatter.toIntegralRounded(n, ROUND_CEILING)
-		return prefix + nLog2Text + nText + nLog10Text
+		return prefix + nLog2Text + nText, nLog10Text
 
 	@staticmethod
 	def resultTextBirthdayProblemInv(n, isLog2, method, prec = None):
-		nText = _BirthdayProblemTextFormatter.resultTextBirthdayProblemInvNumbers(n, isLog2, prec)
-		return nText + _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToDescription(method, True))
+		nText, nLog10Text = _BirthdayProblemTextFormatter.resultTextBirthdayProblemInvNumbers(n, isLog2, prec)
+		return (nText, nLog10Text, _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToDescription(method, True)))
 
 	@staticmethod
 	def headerTextBirthdayProblemNumbers(dLogOrNot, nLogOrNot, isLog2, prec = None):
@@ -769,13 +860,13 @@ class _BirthdayProblemInputHandler:
 
 		if (p is None and nOrNLog is None) or (p is not None and nOrNLog is not None):
 			raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": please provide a non-None value for either '" + varMap.get("nOrDLog", "nOrDLog") + "' or '" + varMap.get("p", "p") + "' (not both)")
-		
+
 		if nOrNLog is not None:
 			_BirthdayProblemInputHandler.checkDecimal(nOrNLog, varMap.get("nOrDLog", "nOrDLog"))
 			if not isStirling and not isExact and not isTaylor and not isAll:
-				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": must set at least one of '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "', '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") + "' when '" + varMap.get("nOrNLog", "nOrNLog") + "' is not None.")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": must set at least one of '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "', '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") + "'.")
 			elif (isStirling or isExact or isTaylor) and isAll:
-				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": flag '" + varMap.get("isAll", "isAll") + "' was true and implicitly includes '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' set to True which should then not be set to True.")
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": flag '" + varMap.get("isAll", "isAll") + "' was true and implicitly includes '" + varMap.get("isStirling", "isStirling") + "' (with -n), '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' set to True which should then not be set to True.")
 			elif not _DecimalFns.isInteger(nOrNLog):
 				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("nOrDLog", "nOrDLog")) + ": please provide an integer")
 			elif _DecimalFns.isLessThanZero(nOrNLog):
@@ -783,8 +874,8 @@ class _BirthdayProblemInputHandler:
 
 		else:
 			_BirthdayProblemInputHandler.checkDecimal(p, varMap.get("p", "p"))
-			if isStirling or isExact or isTaylor:
-				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": '" + varMap.get("isStirling", "isStirling") + "', '" + varMap.get("isTaylor", "isTaylor") + "' and '" + varMap.get("isExact", "isExact") + "' or '" + varMap.get("isAll", "isAll") +"' should only be non-False when '" + varMap.get("nOrDLog", "nOrDLog") + "' is not None (with '" + varMap.get("p", "p") + "' != None), Taylor approximation is always used).")
+			if isStirling:
+				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString() + ": '" + varMap.get("isStirling", "isStirling") + "' should only be non-False when '" + varMap.get("nOrDLog", "nOrDLog") + "' is not None.")
 			elif _DecimalFns.isGreaterThanOne(p) or _DecimalFns.isLessThanZero(p):
 				raise SolverException(SolverErrorCode.BAD_INPUT, message = _BirthdayProblemInputHandler.illegalInputString(varMap.get("p", "p")) + ": please provide a non-negative decimal number in the range [0.0, 1.0]")
 
@@ -800,7 +891,7 @@ class _BirthdayProblemInputHandler:
 		try:
 			if isCombinations:
 				# d is the size of a set of items, calculate the number of permutations that is possible with it
-				if isBinary:	
+				if isBinary:
 					dLog = _DecimalFns.facultyLog(_DecimalContext.ctx.power(_DecimalFns.TWO, dOrDLog), dOrDLog, True)
 					d = _DecimalContext.ctx.power(_DecimalFns.TWO, dLog)
 				else:
@@ -846,28 +937,28 @@ class _BirthdayProblemInputParser:
 			description="Treats the generalized birthday problem for arbitrary values.\n\nCalculates the generalized birthday problem, the probability P that, when sampling uniformly at random N times (with replacement)"
 			+ " from a set of D unique items, there is a non-unique item among the N samples. In the original birthday problem formulation, N is 23 and D is 366 (or 365) for a risk of P ≈ 0.5 = 50% of at least two people having the same"
 			+ " birthday.\n\nSupports calculating both the probability P from N and D (using exact method, exact method with Stirling's approximation in the calculation of faculties and Taylor approximation) and N"
-			+ " from D and P (Taylor approximation only). Both approximations get asymptotically close to the exact result as D grows towards infinity. The exact method should not be used for larger numbers. For extremely small probabilities P, the exact method with Stirling's"
-			+ " approximation used for faculties may become unstable as it involves many more different operations than the Taylor approximation which, each, results in small round-offs. Another source of error in this case arises"
-			+ " from the use of Stirling's formula for two calculations of faculties (D! and (D - N)!). Since one of these ((D - N)!) diverges slightly more from the exact result than the other (D!), the difference between"
-			+ " these (used for calculations in log space) might introduce small errors when P is extremely small. A good check to see whether the approximation in question is suffering or not is to compare it to the Taylor"
+			+ " from D and P (using exact method and Taylor approximation). Both approximations get asymptotically close to the exact result as D grows towards infinity. The exact method should not be used for larger numbers. For extremely"
+			+ " small probabilities P, the exact method with Stirling's approximation used for faculties may become unstable as it involves many more different operations than the Taylor approximation which, each, results in small round-offs."
+			+ " Another source of error in this case arises from the use of Stirling's formula for two calculations of faculties (D! and (D - N)!). Since one of these ((D - N)!) diverges slightly more from the exact result than the other (D!),"
+			+ " the difference between these (used for calculations in log space) might introduce small errors when P is extremely small. A good check to see whether the approximation in question is suffering or not is to compare it to the Taylor"
 			+ " approximation and see whether they match well.\n\nInputs D and N can be seen as literal input numbers or as exponents of base 2 (with -b flag). Furthermore, input D can be seen as a set of items from which"
 			+ " we should produce the D! permutations before proceeding with further calculations (with flag -c).\n\nExample usage:\n\n    Example 1:\n        Calculate the probability P of at least one non-unique birthday among N = 23 persons with all available methods:\n"
-			+ "        > python BirthdayProblem.py 366 -n 23 -a\n\n    Example 2:\n        Calculate, approximatively, the number of times N a deck of cards has to be shuffled to have a P = 50% probability of seeing a repeated shuffle:\n        > python BirthdayProblem.py 52 -p 0.5 -c\n\n    Example 3:\n"
+			+ "        > python BirthdayProblem.py 366 -n 23 -a\n\n    Example 2:\n        Calculate, with Taylor approximation, the number of times N a deck of cards has to be shuffled to have a P = 50% probability of seeing a repeated shuffle:\n        > python BirthdayProblem.py 52 -p 0.5 -t -c\n\n    Example 3:\n"
 			+ "        Calculate, with approximative methods, the probability P of a collision in a 128-bit crypto when encrypting N = 2^64 = 18 446 744 073 709 551 616 blocks with the same key and output answer as a Json object with at most 5 decimals:\n        > python BirthdayProblem.py 128 -n 64 -b -s -t -j --prec 5",
 			formatter_class=argparse.RawTextHelpFormatter
 		)
 
 		parser.add_argument('d', metavar=('D'), type=str, nargs=1, help='Input number D, the total number of unique items, or a number from which the total number of unique items can be derived, in the set we are sampling from.')
 		parser.add_argument('-n', '--samples', metavar=('N'), type=str, help='Input number N, the number of samples, or a number from which the number of samples can be derived from, taken from the full set of D items. When present the probability P of at least one non-unique item among the samples will be calculated. Requires one of flags -e, -s, -t or -a to determine the desired precision(s) of the calculation.')
-		parser.add_argument('-p', '--probability', metavar=('P'), type=str, help='Input number P in [0.0, 1.0], the the probability of at least one non-unique item among the samples. When present the needed number of samples N will be approximated with Taylor series.')
+		parser.add_argument('-p', '--probability', metavar=('P'), type=str, help='Input number P in [0.0, 1.0], the the probability of at least one non-unique item among the samples. When present the needed number of samples N will be calculated. Requires one of flags -e, -t or -a to determine the desired precision(s) of the calculation.')
 
 		parser.add_argument('-b', '--binary', dest='binary', action='store_const', const=True, default=False, help='Inputs D and N are seen as exponents with base 2')
 		parser.add_argument('-c', '--combinations', dest='combinations', action='store_const', const=True, default=False, help="Input D is seen as a number of unique items in a set from which we can yield N! (factorial) different members for the resulting set of unique items from which we sample. The calculation of D! uses Stirling's approximation which might introduce a small error responsible for the difference in results with the same input with and without -c flag.")
 
-		parser.add_argument('-t', '--taylor', dest='taylor', action='store_const', const=True, default=False, help='Use Taylor approximation to calculate the birthday problem (only with flag -n) (best suited for extremely large numbers)')
+		parser.add_argument('-t', '--taylor', dest='taylor', action='store_const', const=True, default=False, help='Use Taylor approximation to calculate the birthday problem (best suited for extremely large numbers)')
 		parser.add_argument('-s', '--stirling', dest='stirling', action='store_const', const=True, default=False, help='Use exact method but approximate faculty calculations with Stirling\'s formula (only with flag -n) (best suited up to extremely large numbers)')
-		parser.add_argument('-e', '--exact', dest='exact', action='store_const', const=True, default=False, help='Use exact method (only with flag -n) (WARNING! This method becomes too slow very quickly as calculations grow with complexity O(N!) where N is the size of the sampled set) (best suited for smaller numbers)')
-		parser.add_argument('-a', '--all', dest='all', action='store_const', const=True, default=False, help='Use all methods for the calculation (same as using flags -e, -s, -t when used with -n, otherwise it has no effect)')
+		parser.add_argument('-e', '--exact', dest='exact', action='store_const', const=True, default=False, help='Use exact method (WARNING! This method becomes too slow very quickly as calculations grow with complexity O(N!) where N is the size of the sampled set) (best suited for smaller numbers)')
+		parser.add_argument('-a', '--all', dest='all', action='store_const', const=True, default=False, help='Use all methods for the calculation (same as using flags -e, -s, -t when used with -n, otherwise same as using flags -e, -t)')
 
 		parser.add_argument('-j', '--json', dest='json', action='store_const', const=True, default=False, help='Output results as a Json object')
 
@@ -879,12 +970,12 @@ class _BirthdayProblemInputParser:
 			parser.error("Please provide one of flags -n or -p with corresponding argument.")
 		elif args.probability is not None and args.samples is not None:
 			parser.error("Please provide EITHER a flag -n or -p, not both.")
-		elif args.samples is not None and not args.stirling and not args.exact and not args.taylor and not args.all:
-			parser.error("Must set at least one of flags -s, -t, -e or -a together with -n.")
-		elif (args.stirling or args.exact or args.taylor) and args.samples is None:
-			parser.error("Flags -s, -t and -e should only be used with flag -n (with flag -p, Taylor approximation is always used).")
+		elif not args.stirling and not args.exact and not args.taylor and not args.all:
+			parser.error("Must set at least one of flags -s, -t, -e or -a.")
+		elif (args.stirling) and args.samples is None:
+			parser.error("Flag -s should only be used with flag -n.")
 		elif (args.stirling or args.exact or args.taylor) and args.all:
-			parser.error("Flag -a was set and implicitly includes -s, -t and -e which should then not be used.")
+			parser.error("Flag -a was set and implicitly includes -s (with -n), -t and -e which should then not be used.")
 		elif re.fullmatch(r'[\d]+', args.d[0]) is None:
 			parser.error("Illegal input for D: please provide a non-negative integer with digits only")
 		elif args.samples and re.fullmatch(r'[\d]+', args.samples) is None:
@@ -950,26 +1041,30 @@ class _BirthdayProblemCLISolver:
 		res = []
 		outputter = (lambda s: print(s)) if isMainProgram else (lambda s: res.append(s))
 
+		lastMethodUsed = None
+		results = []
+
 		# do the calculations based on mode
 		if p is not None:
 			outputter(_BirthdayProblemTextFormatter.headerTextBirthdayProblemInv(dLog if isBinary else d, p, pPercent, isBinary, prec))
-			try:
-				(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
-			except BaseException as e:
-				methodText = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX))
-				errorText = "N/A (Calculation failed: " + str(e).lower() + methodText + ")"
-				if isinstance(e, KeyboardInterrupt):
-					outputter(_BirthdayProblemTextFormatter.indented("N/A (Interrupted by user" + methodText + ")"))
-				elif isinstance(e, SolverException):
-					outputter(_BirthdayProblemTextFormatter.indented(errorText))
-				else:
-					outputter(_BirthdayProblemTextFormatter.indented(errorText))
-			else:
-				outputter(_BirthdayProblemTextFormatter.indented(_BirthdayProblemTextFormatter.resultTextBirthdayProblemInv(n, isBinary, methodUsed, prec)))
+			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
+				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
+					try:
+						(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, method, isBinary)
+						lastMethodUsed = methodUsed
+					except BaseException as e:
+						methodText = _BirthdayProblemTextFormatter.parenthesize(_BirthdayProblemTextFormatter.methodToShortDescription(method))
+						errorText = " (Calculation failed: " + str(e).lower() + methodText + ")"
+						if isinstance(e, KeyboardInterrupt):
+							results += [("N/A", "", " (Interrupted by user" + methodText + ")")]
+						elif isinstance(e, SolverException):
+							results += [("N/A", "", errorText)]
+						else:
+							results += [("N/A", "", errorText)]
+					else:
+						results += [_BirthdayProblemTextFormatter.resultTextBirthdayProblemInv(n, isBinary, methodUsed, prec)]
 		else:
 			outputter(_BirthdayProblemTextFormatter.headerTextBirthdayProblem(dLog if isBinary else d, nLog if isBinary else n, isBinary, prec))
-			lastMethodUsed = None
-			results = []
 			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX, isStirling), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
 				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
 					try:
@@ -987,11 +1082,11 @@ class _BirthdayProblemCLISolver:
 							results += [("N/A", "", errorText)]
 					else:
 						results += [_BirthdayProblemTextFormatter.resultTextBirthdayProblem(p, pPercent, methodUsed, prec)]
-			# map every value for results and log10 results to the length of the string (=> an array of tuples), then spred it with * so that we add tuples as vararg input to zip which will then create two
-			# lists, one with all first value, and one with all last values. For each of these arrays, we take the maximum and then we have the length of the longest res text and the length of the longest log 10 res text
-			(maxLenRes, maxLenLog10Repr) = map(lambda l: max(l), zip(*map(lambda tup: (len(tup[0]), len(tup[1])), results)))
-			for (resText, log10Repr, methodText) in results:
-				outputter(_BirthdayProblemTextFormatter.indented(resText.ljust(maxLenRes, " ") +  log10Repr.ljust(maxLenLog10Repr, " ") + methodText))
+		# map every value for results and log10 results to the length of the string (=> an array of tuples), then spread it with * so that we add tuples as vararg input to zip which will then create two
+		# lists, one with all first value, and one with all last values. For each of these arrays, we take the maximum and then we have the length of the longest res text and the length of the longest log 10 res text
+		(maxLenRes, maxLenLog10Repr) = map(lambda l: max(l), zip(*map(lambda tup: (len(tup[0]), len(tup[1])), results)))
+		for (resText, log10Repr, methodText) in results:
+			outputter(_BirthdayProblemTextFormatter.indented(resText.ljust(maxLenRes, " ") +  log10Repr.ljust(maxLenLog10Repr, " ") + methodText))
 		if(not isMainProgram):
 			return "\n".join(res)
 
@@ -1004,21 +1099,25 @@ class _BirthdayProblemCLISolver:
 			dText, pText = _BirthdayProblemTextFormatter.headerTextBirthdayProblemInvNumbers(dLog if isBinary else d, p, pPercent, isBinary, prec)
 			res['d'] = dText
 			res['p'] = pText
-			try:
-				(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
-			except BaseException as e:
-				methodKey = _BirthdayProblemTextFormatter.methodToText(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX).lower()
-				errorMessage = str(e).lower()
-				if isinstance(e, KeyboardInterrupt):
-					res['results'][methodKey] = { 'error': 'interrupted' }
-				elif isinstance(e, SolverException):
-					res['results'][methodKey] = { 'error': errorMessage }
-				else:
-					res['results'][methodKey] = { 'error': errorMessage }
-			else:
-				methodKey = _BirthdayProblemTextFormatter.methodToText(methodUsed).lower()
-				n = _BirthdayProblemTextFormatter.resultTextBirthdayProblemInvNumbers(n, isBinary, prec)
-				res['results'][methodKey] = { 'result' : n }
+			lastMethodUsed = None
+			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
+				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
+					try:
+						(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, method, isBinary)
+						lastMethodUsed = methodUsed
+					except BaseException as e:
+						methodKey = _BirthdayProblemTextFormatter.methodToText(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX).lower()
+						errorMessage = str(e).lower()
+						if isinstance(e, KeyboardInterrupt):
+							res['results'][methodKey] = { 'error': 'interrupted' }
+						elif isinstance(e, SolverException):
+							res['results'][methodKey] = { 'error': errorMessage }
+						else:
+							res['results'][methodKey] = { 'error': errorMessage }
+					else:
+						methodKey = _BirthdayProblemTextFormatter.methodToText(methodUsed).lower()
+						n = "".join(_BirthdayProblemTextFormatter.resultTextBirthdayProblemInvNumbers(n, isBinary, prec))
+						res['results'][methodKey] = { 'result' : n }
 		else:
 			dText, nText  = _BirthdayProblemTextFormatter.headerTextBirthdayProblemNumbers(dLog if isBinary else d, nLog if isBinary else n, isBinary, prec)
 			res['d'] = dText
