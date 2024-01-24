@@ -22,10 +22,10 @@ testData = [
 	['1 -p 0.5 -a', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of 1 items, needed to have at least a 50% chance of a non-unique sample is:',
-			'          2 (Taylor series approximation used in main calculation)'
+			'          2 (Trivial solution)'
 		]
 	],
-	['1000000000 -p 0.0000001', True,
+	['1000000000 -p 0.0000001 -t', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of 1000000000 (=10^9) items, needed to have at least a 0.00001% (=10^-7) chance of a non-unique sample is:',
 			'          15 (Taylor series approximation used in main calculation)'
@@ -49,6 +49,27 @@ testData = [
 			'          100% (Trivial solution)'
 		]
 	],
+	['69 -p 0.5 -a', True,
+		[
+			'The number of samples, sampled uniformly at random from a set of 69 items, needed to have at least a 50% chance of a non-unique sample is:',
+			'          11 (Exact method)',
+			'          10 (Taylor series approximation used in main calculation)'
+		]
+	],
+	['83 -p 0.5 -a', True,
+		[
+			'The number of samples, sampled uniformly at random from a set of 83 items, needed to have at least a 50% chance of a non-unique sample is:',
+			'          12 (Exact method)',
+			'          11 (Taylor series approximation used in main calculation)'
+		]
+	],
+	['1000000000 -p 0.5 -a', True,
+		[
+			'The number of samples, sampled uniformly at random from a set of 1000000000 (=10^9) items, needed to have at least a 50% chance of a non-unique sample is:',
+			'          37234 (Exact method)',
+			'          37233 (Taylor series approximation used in main calculation)'
+		]
+	],
 	['366 -n 23 -a', True,
 		[
 			'The probability of finding at least one non-unique sample among 23 samples, sampled uniformly at random from a set of 366 items, is:',
@@ -57,9 +78,10 @@ testData = [
 			'          ≈51.4549326419% (Taylor series approximation used in main calculation (removes need for factorial calculation))'
 		]
 	],
-	['366 -p 0.5', True,
+	['366 -p 0.5 -a', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of 366 items, needed to have at least a 50% chance of a non-unique sample is:',
+			'          23 (Exact method)',
 			'          23 (Taylor series approximation used in main calculation)'
 		]
 	],
@@ -89,7 +111,7 @@ testData = [
 			'          ≈39.3469340287% (Taylor series approximation used in main calculation (removes need for factorial calculation))'
 		]
 	],
-	['128 -p 0.5 -b', True,
+	['128 -p 0.5 -b -t', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of 2^128 items, needed to have at least a 50% chance of a non-unique sample is:',
 			'          ≈2^64.2356168135 (Taylor series approximation used in main calculation)'
@@ -102,7 +124,7 @@ testData = [
 			'          ≈39.3469340287% (Taylor series approximation used in main calculation (removes need for factorial calculation))'
 		]
 	],
-	['2000000 -p 0.5 -b', True,
+	['2000000 -p 0.5 -b -t', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of 2^2000000 items, needed to have at least a 50% chance of a non-unique sample is:',
 			'          ≈2^1000000.2356168135 (Taylor series approximation used in main calculation)'
@@ -124,13 +146,13 @@ testData = [
 			'          ≈11.7503097415% (Taylor series approximation used in main calculation (removes need for factorial calculation))'
 		]
 	],
-	['52 -p 0.1 -c', True,
+	['52 -p 0.1 -c -t', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of ≈80529020383886612857810199580012764961409004334781435987268084328737 (≈8*10^67) items, needed to have at least a 10% chance of a non-unique sample is:',
 			'          4119363813276486714957808853108064 (≈4*10^33) (Taylor series approximation used in main calculation)'
 		]
 	],
-	['52 -p 0.5 -c', True,
+	['52 -p 0.5 -c -t', True,
 		[
 			'The number of samples, sampled uniformly at random from a set of ≈80529020383886612857810199580012764961409004334781435987268084328737 (≈8*10^67) items, needed to have at least a 50% chance of a non-unique sample is:',
 			'          10565837726592754214318243269428637 (≈10^34) (Taylor series approximation used in main calculation)'
