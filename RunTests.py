@@ -1,5 +1,6 @@
 import OutputTest
 import DataTest
+import LibraryTest
 from BirthdayProblem import SolverException
 import subprocess
 import json
@@ -11,10 +12,15 @@ import json
 #r = BirthdayProblemCLISolver.solve(['366', '-n', '23', '-a'])
 #print(r)
 
+'''
+resFn is the function that actually does the calculation. Assembler function assembles the assumed answer to its output
+form (if needed) and dividerFn is the inversion of the assemblerFn; it divides the output of the resFn into someting 
+that is simpler to show in the test output (also here only if needed).
+'''
 def runTest(testData, resFn, assemblerFn, dividerFn):
 	failed = 0
 	for i, (args, shouldTestSucceed, ans) in enumerate(testData, start = 1):
-		print("Test " + str(i) + ": input '" + args + "'")
+		print("Test " + str(i) + ": input '" + str(args) + "'")
 		error = False
 		ansSingle = assemblerFn(ans) if shouldTestSucceed else ans
 		try:
@@ -60,7 +66,8 @@ if __name__ == '__main__':
 	print()
 	tests = [
 		["OutputTest", OutputTest.testData, OutputTest.testFn, OutputTest.assemblerFn, OutputTest.dividerFn],
-		["DataTest", DataTest.testData, DataTest.testFn, DataTest.assemblerFn, DataTest.dividerFn]
+		["DataTest", DataTest.testData, DataTest.testFn, DataTest.assemblerFn, DataTest.dividerFn],
+		["LibraryTest", LibraryTest.testData, LibraryTest.testFn, LibraryTest.assemblerFn, LibraryTest.dividerFn]
 	]
 	for (testName, testData, testFn, assemblerFn, dividerFn) in tests:
 		print("-> Running '" + testName + "'")

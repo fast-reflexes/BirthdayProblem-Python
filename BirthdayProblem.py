@@ -262,13 +262,13 @@ class _BirthdayProblemSolver:
 		dOrDLog is the base-2 logarithm of the number of members, s, of a set from which we should generate the sample set d ((2^s)!).
 	'''
 	@staticmethod
-	def solveForN(dOrDLog, p, isBinary, isCombinations):
+	def solveForN(dOrDLog, p, isBinary, isCombinations, method):
 		_DecimalContext.reset() # reset to initial context precision
 		_BirthdayProblemInputHandler.sanitize(dOrDLog, None, p, isBinary, isCombinations, False, False, False, False)
 		d, dLog, _, _, p = _BirthdayProblemInputHandler.setup(dOrDLog, None, p, isBinary, isCombinations)
 		if(dLog is None):
 			raise SolverException(SolverErrorCode.DLOG_NOT_CALCULATED)
-		return _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, isBinary)
+		return _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, method, isBinary)
 
 
 class _BirthdayProblemSolverChecked:
@@ -550,7 +550,7 @@ class _BirthdayProblemSolverChecked:
 		pInv = _DecimalContext.ctx.subtract(_DecimalFns.ONE, p)
 		n = _DecimalFns.ONE
 		currentPInv = _DecimalContext.ctx.divide(_DecimalContext.ctx.subtract(d, n), d)
-		while currentPInv > pInv:
+		while _DecimalFns.isGreaterThan(currentPInv, pInv):
 			n = _DecimalContext.ctx.add(n, _DecimalFns.ONE)
 			currentPInv = _DecimalContext.ctx.multiply(
 				currentPInv,
@@ -950,7 +950,7 @@ class _BirthdayProblemInputParser:
 
 		parser.add_argument('d', metavar=('D'), type=str, nargs=1, help='Input number D, the total number of unique items, or a number from which the total number of unique items can be derived, in the set we are sampling from.')
 		parser.add_argument('-n', '--samples', metavar=('N'), type=str, help='Input number N, the number of samples, or a number from which the number of samples can be derived from, taken from the full set of D items. When present the probability P of at least one non-unique item among the samples will be calculated. Requires one of flags -e, -s, -t or -a to determine the desired precision(s) of the calculation.')
-		parser.add_argument('-p', '--probability', metavar=('P'), type=str, help='Input number P in [0.0, 1.0], the the probability of at least one non-unique item among the samples. When present the needed number of samples N will be calculated. Requires one of flags -e, -t or -a to determine the desired precision(s) of the calculation.')
+		parser.add_argument('-p', '--probability', metavar=('P'), type=str, help='Input number P in [0.0, 1.0], the probability of at least one non-unique item among the samples. When present the needed number of samples N will be calculated. Requires one of flags -e, -t or -a to determine the desired precision(s) of the calculation.')
 
 		parser.add_argument('-b', '--binary', dest='binary', action='store_const', const=True, default=False, help='Inputs D and N are seen as exponents with base 2')
 		parser.add_argument('-c', '--combinations', dest='combinations', action='store_const', const=True, default=False, help="Input D is seen as a number of unique items in a set from which we can yield N! (factorial) different members for the resulting set of unique items from which we sample. The calculation of D! uses Stirling's approximation which might introduce a small error responsible for the difference in results with the same input with and without -c flag.")
@@ -1094,12 +1094,13 @@ class _BirthdayProblemCLISolver:
 	def solveJson(d, dLog, n, nLog, p, pPercent, isBinary, isStirling, isTaylor, isExact, isAll, prec, isMainProgram):
 		res = {'results': {}}
 
+		lastMethodUsed = None
+
 		# do the calculations based on mode
 		if p is not None:
 			dText, pText = _BirthdayProblemTextFormatter.headerTextBirthdayProblemInvNumbers(dLog if isBinary else d, p, pPercent, isBinary, prec)
 			res['d'] = dText
 			res['p'] = pText
-			lastMethodUsed = None
 			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
 				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
 					try:
@@ -1122,7 +1123,6 @@ class _BirthdayProblemCLISolver:
 			dText, nText  = _BirthdayProblemTextFormatter.headerTextBirthdayProblemNumbers(dLog if isBinary else d, nLog if isBinary else n, isBinary, prec)
 			res['d'] = dText
 			res['n'] = nText
-			lastMethodUsed = None
 			for (method, included) in [(_BirthdayProblemSolver.CalcPrecision.EXACT, isExact), (_BirthdayProblemSolver.CalcPrecision.STIRLING_APPROX, isStirling), (_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX, isTaylor)]:
 				if (included or isAll) and lastMethodUsed != _BirthdayProblemSolver.CalcPrecision.TRIVIAL:
 					try:
