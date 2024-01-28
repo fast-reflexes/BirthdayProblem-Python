@@ -121,7 +121,7 @@ To run tests, simply execute
 
 Elias Lousseief (2020)
 
-##Change log
+## Change log
 
 * *v. 1.0*
 * *v. 1.1*
@@ -156,4 +156,8 @@ Elias Lousseief (2020)
     correct answer is 0 and not 1.
   * Added trivial use case for calculating `N` using `D` and `P` when `D` is 1 and `P` is neither 0 nor 1 (in this case
     the answer is always 2).
+
+* *v. 1.4.1*
+  * Documentation, text and smaller fixes forgotten in v. 1.4.
+  * Added tests where the project is used as a library (previous tests only used the project's command line API).
 
