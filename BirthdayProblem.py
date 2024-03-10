@@ -171,6 +171,13 @@ class _DecimalFns:
 		nTakeMFacLogE = _DecimalContext.ctx.subtract(nFacLogE, nSubMFacLogE)
 		return nTakeMFacLogE
 
+	@staticmethod
+	def facultyNaive(n):
+		nFac = _DecimalFns.ONE
+		for i in range(int(n),0, -1):
+			nFac = _DecimalContext.ctx.multiply(nFac, Decimal(i))
+		return nFac
+
 	# faculty method wrapper for both natural and base-2 logarithms
 	@staticmethod
 	def facultyLog(n, nLog, isLog2):
@@ -824,6 +831,12 @@ class _BirthdayProblemInputHandler:
 	########################################################################################################################################################################################################
 	########################################################################################################################################################################################################
 
+	# threshold for resulting log2 d size input under which we use the exact naive method for calculating inputs with
+	# both -c and -b flags (for too large inputs we will get overflow when calculating d which is needed for the naive
+	# method but d is not really needed to solve the problem in log 2 space so then we downgrade to Sterling's
+	# approximation when processing the inputs instead). The used threshold implies naive calculation of 32768!
+	LOG2_THRESHOLD_FOR_NAIVE_CALCULATION_OF_D_FOR_COMBINATIONS_AND_BINARY = Decimal('15') # corresponds to 32768
+
 	@staticmethod
 	def illegalInputString(varName = None):
 		return "Illegal input" if varName is None else "Illegal input for '" + varName + "'"
@@ -892,11 +905,20 @@ class _BirthdayProblemInputHandler:
 			if isCombinations:
 				# d is the size of a set of items, calculate the number of permutations that is possible with it
 				if isBinary:
-					dLog = _DecimalFns.facultyLog(_DecimalContext.ctx.power(_DecimalFns.TWO, dOrDLog), dOrDLog, True)
-					d = _DecimalContext.ctx.power(_DecimalFns.TWO, dLog)
+					if _DecimalFns.isGreaterThan(dOrDLog, _BirthdayProblemInputHandler.LOG2_THRESHOLD_FOR_NAIVE_CALCULATION_OF_D_FOR_COMBINATIONS_AND_BINARY):
+						# use approximation
+						dLog = _DecimalFns.facultyLog(_DecimalContext.ctx.power(_DecimalFns.TWO, dOrDLog), dOrDLog, True)
+						d = _DecimalContext.ctx.power(_DecimalFns.TWO, dLog)
+					else:
+						# use exact calculation
+						d = _DecimalContext.ctx.power(_DecimalFns.TWO, dOrDLog)
+						d = _DecimalFns.facultyNaive(d)
+						dLog = _DecimalContext.ctx.divide(_DecimalContext.ctx.ln(d), _DecimalFns.LOG_E_2)
 				else:
-					dLog = _DecimalFns.facultyLog(d, _DecimalContext.ctx.ln(dOrDLog), False)
-					d = _DecimalContext.ctx.exp(dLog)
+					# here we always need to display d in the output so if we can't calculate it, the request will fail,
+					# therefore we can just calculate it in a naive way without log space
+					d = _DecimalFns.facultyNaive(dOrDLog)
+					dLog = _DecimalContext.ctx.ln(d)
 			else:
 				# d is already the size of the set of combinations
 				if isBinary:
@@ -1107,7 +1129,7 @@ class _BirthdayProblemCLISolver:
 						(n, methodUsed) = _BirthdayProblemSolverChecked.birthdayProblemInv(d, dLog, p, method, isBinary)
 						lastMethodUsed = methodUsed
 					except BaseException as e:
-						methodKey = _BirthdayProblemTextFormatter.methodToText(_BirthdayProblemSolver.CalcPrecision.TAYLOR_APPROX).lower()
+						methodKey = _BirthdayProblemTextFormatter.methodToText(method).lower()
 						errorMessage = str(e).lower()
 						if isinstance(e, KeyboardInterrupt):
 							res['results'][methodKey] = { 'error': 'interrupted' }

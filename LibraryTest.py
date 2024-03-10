@@ -244,12 +244,12 @@ testData = [
     [
         { "dOrDLog": "52", "p": "0.1", "method": BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("4119363813276486714957808853108064"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
+        (Decimal("4122665867622533660736208120290868"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
     ],
     [
         { "dOrDLog": "52", "p": "0.5", "method": BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("10565837726592754214318243269428637"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
+        (Decimal("10574307231100289363611308602026252"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
     ],
     [
         { "dOrDLog": "52", "nOrNLog": "10000000000000000000", "method": BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX, "isCombinations": True, "isBinary": False },
@@ -264,42 +264,42 @@ testData = [
     [
         { "dOrDLog": "52", "nOrNLog": "10000000000000000000000000000000000", "method": BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("0.462536366051"), BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX)
+        (Decimal("0.462001746672"), BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX)
     ],
     [
         { "dOrDLog": "52", "nOrNLog": "10000000000000000000000000000000000", "method": BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("0.462536366051"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
+        (Decimal("0.462001746672"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
     ],
     [
         { "dOrDLog": "4", "nOrNLog": "18", "method": BirthdayProblem.Solver.CalcPrecision.EXACT, "isCombinations": True, "isBinary": True },
         True,
-        (Decimal("0.001649423866"), BirthdayProblem.Solver.CalcPrecision.EXACT)
+        (Decimal("0.001640861961"), BirthdayProblem.Solver.CalcPrecision.EXACT)
     ],
     [
         { "dOrDLog": "4", "nOrNLog": "18", "method": BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX, "isCombinations": True, "isBinary": True },
         True,
-        (Decimal("0.001649422224"), BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX)
+        (Decimal("0.001640861961"), BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX)
     ],
     [
         { "dOrDLog": "4", "nOrNLog": "18", "method": BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX, "isCombinations": True, "isBinary": True },
         True,
-        (Decimal("0.001649428504"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
+        (Decimal("0.001640868208"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
     ],
     [
         { "dOrDLog": "16", "nOrNLog": "262144", "method": BirthdayProblem.Solver.CalcPrecision.EXACT, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("0.001649423866"), BirthdayProblem.Solver.CalcPrecision.EXACT)
+        (Decimal("0.001640861961"), BirthdayProblem.Solver.CalcPrecision.EXACT)
     ],
     [
         { "dOrDLog": "16", "nOrNLog": "262144", "method": BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("0.001649422224"), BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX)
+        (Decimal("0.001640861961"), BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX)
     ],
     [
         { "dOrDLog": "16", "nOrNLog": "262144", "method": BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX, "isCombinations": True, "isBinary": False },
         True,
-        (Decimal("0.001649428504"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
+        (Decimal("0.001640868208"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
     ],
     [
         { "dOrDLog": "20922789888000", "nOrNLog": "262144", "method": BirthdayProblem.Solver.CalcPrecision.EXACT, "isCombinations": False, "isBinary": False },
@@ -335,6 +335,11 @@ testData = [
         { "dOrDLog": "1280", "nOrNLog": "640", "method": BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX, "isCombinations": True, "isBinary": True },
         True,
         (Decimal("0"), BirthdayProblem.Solver.CalcPrecision.TAYLOR_APPROX)
+    ],
+    [
+        { "dOrDLog": "1280", "p": "0.5", "method": BirthdayProblem.Solver.CalcPrecision.EXACT, "isCombinations": True, "isBinary": True },
+        False,
+        "d exceeds maximum size and is needed for method"
     ],
     [
         { "dOrDLog": "12800", "nOrNLog": "6400", "method": BirthdayProblem.Solver.CalcPrecision.STIRLING_APPROX, "isCombinations": True, "isBinary": True },

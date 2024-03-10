@@ -161,3 +161,8 @@ Elias Lousseief (2020)
   * Documentation, text and smaller fixes forgotten in v. 1.4.
   * Added tests where the project is used as a library (previous tests only used the project's command line API).
 
+* *v. 1.4.2* 
+  * Corrected wrong method flag returned when solving for `N` with overflow in `D`.
+  * Added exact (naive) calculation of `D` parameter when `-c` flag is used. Earlier this relied on the Sterling
+    approximation. It still relies on Sterling approximation when `-b` and `-c` are used in combination with an input
+    `D` larger than 15.
