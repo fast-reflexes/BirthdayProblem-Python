@@ -19,5 +19,5 @@
 * Merge in git
 * Pull master locally
 * Add tag with `git tag X.X.X`
-* Push tags with `git push tags`
+* Push the new tag with `git push origin XXX`
 * Add new release for tag in Github

@@ -1,5 +1,5 @@
-import OutputTest
-import DataTest
+import TextTest
+import JsonTest
 import LibraryTest
 from BirthdayProblem import SolverException
 import subprocess
@@ -65,8 +65,8 @@ if __name__ == '__main__':
 	print("Running all tests...")
 	print()
 	tests = [
-		["OutputTest", OutputTest.testData, OutputTest.testFn, OutputTest.assemblerFn, OutputTest.dividerFn],
-		["DataTest", DataTest.testData, DataTest.testFn, DataTest.assemblerFn, DataTest.dividerFn],
+		["TextTest", TextTest.testData, TextTest.testFn, TextTest.assemblerFn, TextTest.dividerFn],
+		["JsonTest", JsonTest.testData, JsonTest.testFn, JsonTest.assemblerFn, JsonTest.dividerFn],
 		["LibraryTest", LibraryTest.testData, LibraryTest.testFn, LibraryTest.assemblerFn, LibraryTest.dividerFn]
 	]
 	for (testName, testData, testFn, assemblerFn, dividerFn) in tests:
